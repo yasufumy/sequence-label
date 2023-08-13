@@ -1,10 +1,20 @@
 [project]
 name = "sequence-label"
+description = "A Sequence Labeling Utility"
 authors = [
     {name = "Yasufumi Taniguchi", email = "yasufumi.taniguchi@gmail.com"},
 ]
 requires-python = ">=3.8,<3.12"
 dynamic = ["version"]
+readme = "README.md"
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11"
+]
 
 [project.optional-dependencies]
 transformers = [
