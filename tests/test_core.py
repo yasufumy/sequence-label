@@ -6,17 +6,17 @@ from sequence_label import LabelAlignment, LabelSet, SequenceLabel
 from sequence_label.core import Span
 
 
-@pytest.fixture
+@pytest.fixture()
 def text() -> str:
     return "Tokyo is the capital of Japan."
 
 
-@pytest.fixture
+@pytest.fixture()
 def size(text: str) -> int:
     return len(text)
 
 
-@pytest.fixture
+@pytest.fixture()
 def label(size: int) -> SequenceLabel:
     return SequenceLabel.from_dict(
         tags=[
@@ -27,7 +27,7 @@ def label(size: int) -> SequenceLabel:
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def alignment() -> LabelAlignment:
     # Tokenized by RoBERTa
     return LabelAlignment(
@@ -78,7 +78,7 @@ def alignment() -> LabelAlignment:
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def truncated_alignment() -> LabelAlignment:
     # Tokenized by RoBERTa
     return LabelAlignment(
@@ -123,13 +123,13 @@ def truncated_alignment() -> LabelAlignment:
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def label_set() -> LabelSet:
     return LabelSet({"ORG", "PER"})
 
 
 @pytest.mark.parametrize(
-    "label, expected",
+    ("label", "expected"),
     [
         ("ORG", True),
         ("PER", True),

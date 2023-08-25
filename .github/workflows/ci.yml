@@ -22,16 +22,13 @@ jobs:
         python -m pip install -e ".[ci]"
     - name: Lint with ruff
       run: |
-        ruff check src
-        ruff check tests
+        ruff check .
     - name: Lint with black
       run: |
-        black --check src
-        black --check tests
+        black --check .
     - name: Lint with mypy
       run: |
-        mypy src
-        mypy tests
+        mypy
     - name: Run tests
       run: |
         pytest --cov=src/sequence-label --cov-report=term-missing

@@ -1,24 +1,29 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
-from transformers import AutoTokenizer, PreTrainedTokenizerFast
+from transformers import AutoTokenizer
 
 from sequence_label import LabelSet, SequenceLabel
 from sequence_label.transformers import get_alignments
 
+if TYPE_CHECKING:
+    from transformers import PreTrainedTokenizerFast
 
-@pytest.fixture
+
+@pytest.fixture()
 def tokenizer() -> PreTrainedTokenizerFast:
     return AutoTokenizer.from_pretrained("distilroberta-base")
 
 
-@pytest.fixture
+@pytest.fixture()
 def label_set() -> LabelSet:
     return LabelSet({"ORG", "LOC", "PER", "MISC"})
 
 
 @pytest.mark.parametrize(
-    "text, tag_indices, expected",
+    ("text", "tag_indices", "expected"),
     [
         (
             "Tokyo is the capital of Japan.",
@@ -74,7 +79,7 @@ def test_decoded_labels_are_valid(
 
 
 @pytest.mark.parametrize(
-    "text, labels, expected",
+    ("text", "labels", "expected"),
     [
         (
             "Tokyo is the capital of Japan.",
@@ -674,7 +679,7 @@ params = [
 ]
 
 
-@pytest.mark.parametrize("text, labels, expected", params)
+@pytest.mark.parametrize(("text", "labels", "expected"), params)
 def test_tag_bitmap_is_valid(
     label_set: LabelSet,
     tokenizer: PreTrainedTokenizerFast,

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from transformers import BatchEncoding
+from typing import TYPE_CHECKING
 
 from sequence_label import LabelAlignment
 from sequence_label.core import Span
+
+if TYPE_CHECKING:
+    from transformers import BatchEncoding
 
 
 def get_alignments(
