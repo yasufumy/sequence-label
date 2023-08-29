@@ -201,7 +201,7 @@ class LabelAlignment:
             raise ValueError()
 
         if label.base != "character":
-            raise ValueError()
+            raise ValueError("The label must be defined in character-based.")
 
         tags = []
         for tag in label.tags:
