@@ -3,7 +3,7 @@ from __future__ import annotations
 from bisect import bisect_left
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 
 @dataclass(frozen=True, order=True)
@@ -58,10 +58,14 @@ class TagDict(TypedDict):
     label: str
 
 
+Base = Literal["character", "token"]
+
+
 @dataclass(frozen=True)
 class SequenceLabel:
     tags: tuple[Tag, ...]
     size: int
+    base: Base = "character"
 
     def __post_init__(self) -> None:
         if any(self.tags[i] > self.tags[i + 1] for i in range(len(self.tags) - 1)):
@@ -84,14 +88,17 @@ class SequenceLabel:
                 )
 
     @classmethod
-    def from_dict(cls, tags: list[TagDict], size: int) -> SequenceLabel:
+    def from_dict(
+        cls, tags: list[TagDict], size: int, base: Base = "character"
+    ) -> SequenceLabel:
         return cls(
-            tuple(
+            tags=tuple(
                 sorted(
                     Tag.create(tag["start"], tag["end"], tag["label"]) for tag in tags
                 )
             ),
-            size,
+            size=size,
+            base=base,
         )
 
 
@@ -156,6 +163,9 @@ class LabelAlignment:
         if self.num_tokens != label.size:
             raise ValueError()
 
+        if label.base != "token":
+            raise ValueError()
+
         tags = []
         for tag in label.tags:
             token_span = tag.span
@@ -174,7 +184,7 @@ class LabelAlignment:
                 )
             )
 
-        return SequenceLabel(tags=tuple(tags), size=self.char_length)
+        return SequenceLabel(tags=tuple(tags), size=self.char_length, base="character")
 
     def convert_to_token_based(self, label: SequenceLabel) -> SequenceLabel:
         """Converts character-based tags to token-based tags. Note that this operation
@@ -188,7 +198,10 @@ class LabelAlignment:
             A token-based sequence label.
         """
         if self.char_length != label.size:
-            raise ValueError
+            raise ValueError()
+
+        if label.base != "character":
+            raise ValueError()
 
         tags = []
         for tag in label.tags:
@@ -199,7 +212,7 @@ class LabelAlignment:
                 continue
             tags.append(Tag.create(start=start, end=end + 1, label=tag.label))
 
-        return SequenceLabel(tags=tuple(tags), size=self.num_tokens)
+        return SequenceLabel(tags=tuple(tags), size=self.num_tokens, base="token")
 
 
 class Status(Enum):
@@ -436,7 +449,7 @@ class LabelSet:
 
             labels.append(
                 alignment.convert_to_char_based(
-                    SequenceLabel(tuple(tags), len(indices))
+                    SequenceLabel(tags=tuple(tags), size=len(indices), base="token")
                 )
             )
 
