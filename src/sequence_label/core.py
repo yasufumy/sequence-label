@@ -49,7 +49,7 @@ class Tag:
             raise ValueError(f"end must be greater than start: {start} >= {end}")
 
         length = end - start
-        return cls(Span(start, length), label)
+        return cls(span=Span(start=start, length=length), label=label)
 
 
 class TagDict(TypedDict):
@@ -93,7 +93,8 @@ class SequenceLabel:
         return cls(
             tags=tuple(
                 sorted(
-                    Tag.create(tag["start"], tag["end"], tag["label"]) for tag in tags
+                    Tag.create(start=tag["start"], end=tag["end"], label=tag["label"])
+                    for tag in tags
                 )
             ),
             size=size,
@@ -301,7 +302,7 @@ class LabelSet:
             )
 
     def get_tag_bitmap(self, tag: Tag) -> list[list[bool]]:
-        indices = self.get_tag_indices(tag)
+        indices = self.get_tag_indices(tag=tag)
 
         bitmap = [[False] * self.state_size for _ in range(tag.length)]
         for i, j in enumerate(indices):
@@ -329,7 +330,7 @@ class LabelSet:
             )
 
         labels_token_based = [
-            alignment.convert_to_token_based(label)
+            alignment.convert_to_token_based(label=label)
             for label, alignment in zip(labels, alignments)
         ]
 
@@ -370,7 +371,7 @@ class LabelSet:
             )
 
         labels_token_based = [
-            alignment.convert_to_token_based(label)
+            alignment.convert_to_token_based(label=label)
             for label, alignment in zip(labels, alignments)
         ]
 
@@ -381,7 +382,7 @@ class LabelSet:
             tag_bitmap = [[False] * self.state_size for _ in range(max_size)]
             for tag in label.tags:
                 start = tag.start
-                for i, bitmap in enumerate(self.get_tag_bitmap(tag), start):
+                for i, bitmap in enumerate(self.get_tag_bitmap(tag=tag), start):
                     tag_bitmap[i] = [a or b for a, b in zip(tag_bitmap[i], bitmap)]
 
             for i in range(label.size):
@@ -438,16 +439,18 @@ class LabelSet:
                     continue
 
                 if move is Move.UNIT:
-                    tags.append(Tag.create(now, now + 1, label))
+                    tags.append(Tag.create(start=now, end=now + 1, label=label))
                 elif move is Move.END:
                     prev = now
                     while self.__states[indices[prev]][0] is not Move.START:
                         prev -= 1
-                    tags.append(Tag.create(prev, now + 1, label))
+                    tags.append(Tag.create(start=prev, end=now + 1, label=label))
 
             labels.append(
                 alignment.convert_to_char_based(
-                    SequenceLabel(tags=tuple(tags), size=len(indices), base=Base.TOKEN)
+                    label=SequenceLabel(
+                        tags=tuple(tags), size=len(indices), base=Base.TOKEN
+                    )
                 )
             )
 
