@@ -13,7 +13,7 @@ def get_alignments(
     batch_encoding: BatchEncoding, char_lengths: list[int]
 ) -> tuple[LabelAlignment, ...]:
     if not batch_encoding.is_fast:
-        raise ValueError()
+        raise ValueError("Please use PreTrainedTokenizerFast.")
 
     alignments = []
     for i, length in enumerate(char_lengths):
