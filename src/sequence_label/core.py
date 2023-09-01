@@ -125,7 +125,7 @@ class LabelAlignment:
         if not all(index == -1 or 0 <= index < target_size for index in target_indices):
             raise ValueError(
                 "Each item in token_indices must be -1 or"
-                f" in between 0 and {target_size- 1}: {target_indices}"
+                f" in between 0 and {target_size - 1}: {target_indices}"
             )
 
         source_size = len(target_indices)
@@ -137,7 +137,7 @@ class LabelAlignment:
         ):
             raise ValueError(
                 "Each span in char_spans must be None or"
-                f" in between 0 and {source_size- 1}: {source_spans}"
+                f" in between 0 and {source_size - 1}: {source_spans}"
             )
 
         self.__source_spans = source_spans
