@@ -323,7 +323,10 @@ class LabelSet:
 
         """
         if len(labels) != len(alignments):
-            raise ValueError()
+            raise ValueError(
+                "The size of labels must be the same as its alignments: "
+                f"{len(labels)} != {len(alignments)}"
+            )
 
         labels_token_based = [
             alignment.convert_to_token_based(label)
@@ -361,7 +364,10 @@ class LabelSet:
 
         """
         if len(labels) != len(alignments):
-            raise ValueError()
+            raise ValueError(
+                "The size of labels must be the same as its alignments: "
+                f"{len(labels)} != {len(alignments)}"
+            )
 
         labels_token_based = [
             alignment.convert_to_token_based(label)
@@ -399,7 +405,10 @@ class LabelSet:
             A character-based sequence label.
         """
         if len(tag_indices) != len(alignments):
-            raise ValueError()
+            raise ValueError(
+                "The size of tag_indices must be the same as its alignments: "
+                f"{len(tag_indices)} != {len(alignments)}"
+            )
 
         if any(len(indices) <= 0 for indices in tag_indices):
             raise ValueError("Invalid indices.")
