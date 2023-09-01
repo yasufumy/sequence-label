@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, auto
 from itertools import chain
-from typing import Literal, TypedDict
+from typing import TypedDict
 
 
 @dataclass(frozen=True, order=True)
@@ -58,21 +58,20 @@ class TagDict(TypedDict):
     label: str
 
 
-Base = Literal["character", "token"]
+class Base(Enum):
+    CHARACTER = auto()
+    TOKEN = auto()
 
 
 @dataclass(frozen=True)
 class SequenceLabel:
     tags: tuple[Tag, ...]
     size: int
-    base: Base = "character"
+    base: Base = Base.CHARACTER
 
     def __post_init__(self) -> None:
         if any(self.tags[i] > self.tags[i + 1] for i in range(len(self.tags) - 1)):
-            raise ValueError("Tags must be sorted.")
-
-        if any(tag.start + tag.length > self.size for tag in self.tags):
-            raise ValueError("Invalid tag is found.")
+            raise ValueError("Tags must be sorted by Tag.start and Tag.length.")
 
         for tag in self.tags:
             if tag.start < 0 or tag.start >= self.size:
@@ -89,7 +88,7 @@ class SequenceLabel:
 
     @classmethod
     def from_dict(
-        cls, tags: list[TagDict], size: int, base: Base = "character"
+        cls, tags: list[TagDict], size: int, base: Base = Base.CHARACTER
     ) -> SequenceLabel:
         return cls(
             tags=tuple(
@@ -161,10 +160,13 @@ class LabelAlignment:
             A character-based sequence label.
         """
         if self.num_tokens != label.size:
-            raise ValueError()
+            raise ValueError(
+                "label.size must be the same as num_tokens: "
+                f"{label.size} != {self.num_tokens}"
+            )
 
-        if label.base != "token":
-            raise ValueError()
+        if label.base is not Base.TOKEN:
+            raise ValueError(f"label.base must be Base.TOKEN: {label.base}")
 
         tags = []
         for tag in label.tags:
@@ -184,7 +186,9 @@ class LabelAlignment:
                 )
             )
 
-        return SequenceLabel(tags=tuple(tags), size=self.char_length, base="character")
+        return SequenceLabel(
+            tags=tuple(tags), size=self.char_length, base=Base.CHARACTER
+        )
 
     def convert_to_token_based(self, label: SequenceLabel) -> SequenceLabel:
         """Converts character-based tags to token-based tags. Note that this operation
@@ -198,10 +202,13 @@ class LabelAlignment:
             A token-based sequence label.
         """
         if self.char_length != label.size:
-            raise ValueError()
+            raise ValueError(
+                "label.size must be the same as char_length: "
+                f"{label.size} != {self.char_length}"
+            )
 
-        if label.base != "character":
-            raise ValueError("The label must be defined in character-based.")
+        if label.base != Base.CHARACTER:
+            raise ValueError(f"label.base must be Base.CHARACTER: {label.base}")
 
         tags = []
         for tag in label.tags:
@@ -212,7 +219,7 @@ class LabelAlignment:
                 continue
             tags.append(Tag.create(start=start, end=end + 1, label=tag.label))
 
-        return SequenceLabel(tags=tuple(tags), size=self.num_tokens, base="token")
+        return SequenceLabel(tags=tuple(tags), size=self.num_tokens, base=Base.TOKEN)
 
 
 class Move(Enum):
@@ -431,7 +438,7 @@ class LabelSet:
 
             labels.append(
                 alignment.convert_to_char_based(
-                    SequenceLabel(tags=tuple(tags), size=len(indices), base="token")
+                    SequenceLabel(tags=tuple(tags), size=len(indices), base=Base.TOKEN)
                 )
             )
 
