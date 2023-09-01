@@ -150,10 +150,10 @@ def test_ignore_tags_define_in_truncated_text(
     truncated_alignment: LabelAlignment, label: SequenceLabel
 ) -> None:
     expected = SequenceLabel.from_dict(
-        tags=[{"start": 1, "end": 3, "label": "LOC"}], size=4, base=Base.TOKEN
+        tags=[{"start": 1, "end": 3, "label": "LOC"}], size=4, base=Base.TARGET
     )
 
-    assert truncated_alignment.convert_to_token_based(label=label) == expected
+    assert truncated_alignment.align_with_target(label=label) == expected
 
 
 def test_start_states_are_valid(label_set: LabelSet) -> None:

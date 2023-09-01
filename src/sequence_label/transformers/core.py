@@ -34,7 +34,7 @@ def get_alignments(
 
         alignments.append(
             LabelAlignment(
-                char_spans=tuple(char_spans), token_indices=tuple(token_indices)
+                source_spans=tuple(char_spans), target_indices=tuple(token_indices)
             )
         )
     return tuple(alignments)

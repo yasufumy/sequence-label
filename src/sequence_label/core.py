@@ -59,15 +59,15 @@ class TagDict(TypedDict):
 
 
 class Base(Enum):
-    CHARACTER = auto()
-    TOKEN = auto()
+    SOURCE = auto()
+    TARGET = auto()
 
 
 @dataclass(frozen=True)
 class SequenceLabel:
     tags: tuple[Tag, ...]
     size: int
-    base: Base = Base.CHARACTER
+    base: Base = Base.SOURCE
 
     def __post_init__(self) -> None:
         if any(self.tags[i] > self.tags[i + 1] for i in range(len(self.tags) - 1)):
@@ -88,7 +88,7 @@ class SequenceLabel:
 
     @classmethod
     def from_dict(
-        cls, tags: list[TagDict], size: int, base: Base = Base.CHARACTER
+        cls, tags: list[TagDict], size: int, base: Base = Base.SOURCE
     ) -> SequenceLabel:
         return cls(
             tags=tuple(
@@ -119,39 +119,39 @@ class LabelAlignment:
     """
 
     def __init__(
-        self, char_spans: tuple[Span | None, ...], token_indices: tuple[int, ...]
+        self, source_spans: tuple[Span | None, ...], target_indices: tuple[int, ...]
     ):
-        num_tokens = len(char_spans)
-        if not all(index == -1 or 0 <= index < num_tokens for index in token_indices):
+        target_size = len(source_spans)
+        if not all(index == -1 or 0 <= index < target_size for index in target_indices):
             raise ValueError(
                 "Each item in token_indices must be -1 or"
-                f" in between 0 and {num_tokens - 1}: {token_indices}"
+                f" in between 0 and {target_size- 1}: {target_indices}"
             )
 
-        char_length = len(token_indices)
+        source_size = len(target_indices)
         if not all(
-            0 <= span.start < char_length  # check if start is valid
-            and 0 <= span.start + span.length - 1 < char_length  # check if end is valid
-            for span in char_spans
+            0 <= span.start < source_size  # check if start is valid
+            and 0 <= span.start + span.length - 1 < source_size  # check if end is valid
+            for span in source_spans
             if span is not None
         ):
             raise ValueError(
                 "Each span in char_spans must be None or"
-                f" in between 0 and {char_length - 1}: {char_spans}"
+                f" in between 0 and {source_size- 1}: {source_spans}"
             )
 
-        self.__char_spans = char_spans
-        self.__token_indices = token_indices
+        self.__source_spans = source_spans
+        self.__target_indices = target_indices
 
     @property
-    def char_length(self) -> int:
-        return len(self.__token_indices)
+    def source_size(self) -> int:
+        return len(self.__target_indices)
 
     @property
-    def num_tokens(self) -> int:
-        return len(self.__char_spans)
+    def target_size(self) -> int:
+        return len(self.__source_spans)
 
-    def convert_to_char_based(self, label: SequenceLabel) -> SequenceLabel:
+    def align_with_source(self, label: SequenceLabel) -> SequenceLabel:
         """Converts token-based tags to character-based tags.
 
         Args:
@@ -160,38 +160,38 @@ class LabelAlignment:
         Returns:
             A character-based sequence label.
         """
-        if self.num_tokens != label.size:
+        if self.target_size != label.size:
             raise ValueError(
-                "label.size must be the same as num_tokens: "
-                f"{label.size} != {self.num_tokens}"
+                "label.size must be the same as target_size: "
+                f"{label.size} != {self.target_size}"
             )
 
-        if label.base is not Base.TOKEN:
-            raise ValueError(f"label.base must be Base.TOKEN: {label.base}")
+        if label.base is not Base.TARGET:
+            raise ValueError(f"label.base must be Base.TARGET: {label.base}")
 
         tags = []
         for tag in label.tags:
-            token_span = tag.span
+            target_span = tag.span
 
-            char_span_start = self.__char_spans[token_span.start]
-            char_span_end = self.__char_spans[token_span.start + token_span.length - 1]
+            source_span_start = self.__source_spans[target_span.start]
+            source_span_end = self.__source_spans[
+                target_span.start + target_span.length - 1
+            ]
 
-            if char_span_start is None or char_span_end is None:
+            if source_span_start is None or source_span_end is None:
                 continue
 
             tags.append(
                 Tag.create(
-                    start=char_span_start.start,
-                    end=char_span_end.start + char_span_end.length,
+                    start=source_span_start.start,
+                    end=source_span_end.start + source_span_end.length,
                     label=tag.label,
                 )
             )
 
-        return SequenceLabel(
-            tags=tuple(tags), size=self.char_length, base=Base.CHARACTER
-        )
+        return SequenceLabel(tags=tuple(tags), size=self.source_size, base=Base.SOURCE)
 
-    def convert_to_token_based(self, label: SequenceLabel) -> SequenceLabel:
+    def align_with_target(self, label: SequenceLabel) -> SequenceLabel:
         """Converts character-based tags to token-based tags. Note that this operation
         is irreversible. For example, if a text is truncated in tokenization,
         tags associated with a truncated part will be ignored.
@@ -202,25 +202,25 @@ class LabelAlignment:
         Returns:
             A token-based sequence label.
         """
-        if self.char_length != label.size:
+        if self.source_size != label.size:
             raise ValueError(
-                "label.size must be the same as char_length: "
-                f"{label.size} != {self.char_length}"
+                "label.size must be the same as source_size: "
+                f"{label.size} != {self.source_size}"
             )
 
-        if label.base != Base.CHARACTER:
-            raise ValueError(f"label.base must be Base.CHARACTER: {label.base}")
+        if label.base != Base.SOURCE:
+            raise ValueError(f"label.base must be Base.SOURCE: {label.base}")
 
         tags = []
         for tag in label.tags:
-            start = self.__token_indices[tag.start]
-            end = self.__token_indices[tag.start + tag.length - 1]  # inclusive
+            start = self.__target_indices[tag.start]
+            end = self.__target_indices[tag.start + tag.length - 1]  # inclusive
             if start == -1 or end == -1:
                 # There is no char span which strictly corresponds a given tag.
                 continue
             tags.append(Tag.create(start=start, end=end + 1, label=tag.label))
 
-        return SequenceLabel(tags=tuple(tags), size=self.num_tokens, base=Base.TOKEN)
+        return SequenceLabel(tags=tuple(tags), size=self.target_size, base=Base.TARGET)
 
 
 class Move(Enum):
@@ -330,7 +330,7 @@ class LabelSet:
             )
 
         labels_token_based = [
-            alignment.convert_to_token_based(label=label)
+            alignment.align_with_target(label=label)
             for label, alignment in zip(labels, alignments)
         ]
 
@@ -371,7 +371,7 @@ class LabelSet:
             )
 
         labels_token_based = [
-            alignment.convert_to_token_based(label=label)
+            alignment.align_with_target(label=label)
             for label, alignment in zip(labels, alignments)
         ]
 
@@ -447,9 +447,9 @@ class LabelSet:
                     tags.append(Tag.create(start=prev, end=now + 1, label=label))
 
             labels.append(
-                alignment.convert_to_char_based(
+                alignment.align_with_source(
                     label=SequenceLabel(
-                        tags=tuple(tags), size=len(indices), base=Base.TOKEN
+                        tags=tuple(tags), size=len(indices), base=Base.TARGET
                     )
                 )
             )
