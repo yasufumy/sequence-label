@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from bisect import bisect_left
 from dataclasses import dataclass
 from enum import Enum, auto
+from itertools import chain
 from typing import Literal, TypedDict
 
 
@@ -215,7 +215,8 @@ class LabelAlignment:
         return SequenceLabel(tags=tuple(tags), size=self.num_tokens, base="token")
 
 
-class Status(Enum):
+class Move(Enum):
+    OUTSIDE = auto()
     START = auto()
     INSIDE = auto()
     END = auto()
@@ -231,86 +232,71 @@ class LabelSet:
     """
 
     def __init__(self, labels: set[str], padding_index: int = -1):
-        self.__labels = [*sorted(labels)]
-        self.__status_size = len(Status)  # start, inside, end, unit
+        self.__outside_index = 0
+        self.__padding_index = padding_index
 
-        self.__start_indices = [
-            *range(
-                1,
-                self.get_tag_size(),
-                self.__status_size,
-            )
-        ]
-        self.__unit_indices = [
-            *range(
-                self.__status_size,
-                self.get_tag_size(),
-                self.__status_size,
-            )
-        ]
+        self.__start_indices = {}
+        self.__inside_indices = {}
+        self.__end_indices = {}
+        self.__unit_indices = {}
 
-        self.__label_ids: dict[str, int] = dict(
-            zip(self.__labels, self.__start_indices)
+        self.__states: list[tuple[Move, str | None]] = [(Move.OUTSIDE, None)]
+
+        for label in sorted(labels):
+            self.__start_indices[label] = self.state_size
+            self.__inside_indices[label] = self.state_size
+            self.__end_indices[label] = self.state_size
+            self.__unit_indices[label] = self.state_size
+            for move in (Move.START, Move.INSIDE, Move.END, Move.UNIT):
+                self.__states.append((move, label))
+
+        self.start_states = self.__get_start_states()
+        self.transitions = self.__get_transitions()
+        self.end_states = self.__get_end_states()
+
+    @property
+    def state_size(self) -> int:
+        return 1 + sum(
+            map(
+                len,
+                (
+                    self.__start_indices,
+                    self.__inside_indices,
+                    self.__end_indices,
+                    self.__unit_indices,
+                ),
+            )
         )
 
-        self.outside_index = 0
-        self.padding_index = padding_index
+    @property
+    def outside_index(self) -> int:
+        return self.__outside_index
 
-        # Automaton
-        self.start_states = tuple(self.get_start_states())
-        self.transitions = tuple(tuple(x) for x in self.get_transitions())
-        self.end_states = tuple(self.get_end_states())
+    @property
+    def padding_index(self) -> int:
+        return self.__padding_index
 
     def __contains__(self, label: str) -> bool:
-        i = bisect_left(self.__labels, label)
-        if i >= len(self.__labels):
-            return False
-        return self.__labels[i] == label
+        return label in self.__start_indices
 
-    def __get_start_index(self, label: str) -> int:
-        if label not in self.__label_ids:
-            raise ValueError("Invalid label is given.")
-        return self.__label_ids[label]
+    def get_tag_indices(self, tag: Tag) -> list[int]:
+        if tag.label not in self:
+            raise ValueError(f"Invalid label is given: {tag.label}")
 
-    def __get_inside_index(self, label: str) -> int:
-        return self.__get_start_index(label) + 1
-
-    def __get_end_index(self, label: str) -> int:
-        return self.__get_start_index(label) + 2
-
-    def __get_unit_index(self, label: str) -> int:
-        return self.__get_start_index(label) + 3
-
-    def get_labels(self) -> list[str]:
-        return self.__labels
-
-    def get_label_size(self) -> int:
-        return len(self.__labels)
-
-    def get_tag_size(self) -> int:
-        # (start, inside, end, unit) * label + outside status
-        return self.__status_size * self.get_label_size() + 1
-
-    def get_tag_indices(self, label: str, size: int) -> list[int]:
-        if label not in self:
-            raise ValueError(f"Invalid label is given: {label}")
-
-        if size == 1:
-            return [self.__get_unit_index(label)]
-        elif size == 2:
-            return [self.__get_start_index(label), self.__get_end_index(label)]
+        if tag.length == 1:
+            return [self.__unit_indices[tag.label]]
         else:
-            rest = size - 2
+            rest = tag.length - 2
             return (
-                [self.__get_start_index(label)]
-                + [self.__get_inside_index(label)] * rest
-                + [self.__get_end_index(label)]
+                [self.__start_indices[tag.label]]
+                + [self.__inside_indices[tag.label]] * rest
+                + [self.__end_indices[tag.label]]
             )
 
-    def get_tag_bitmap(self, label: str, size: int) -> list[list[bool]]:
-        indices = self.get_tag_indices(label, size)
+    def get_tag_bitmap(self, tag: Tag) -> list[list[bool]]:
+        indices = self.get_tag_indices(tag)
 
-        bitmap = [[False] * self.get_tag_size() for _ in range(size)]
+        bitmap = [[False] * self.state_size for _ in range(tag.length)]
         for i, j in enumerate(indices):
             bitmap[i][j] = True
 
@@ -348,7 +334,7 @@ class LabelSet:
             for tag in label.tags:
                 start = tag.start
                 end = tag.start + tag.length
-                tag_indices[start:end] = self.get_tag_indices(tag.label, tag.length)
+                tag_indices[start:end] = self.get_tag_indices(tag)
 
             batch.append(tag_indices)
 
@@ -379,12 +365,10 @@ class LabelSet:
 
         batch = []
         for label in labels_token_based:
-            tag_bitmap = [[False] * self.get_tag_size() for _ in range(max_size)]
+            tag_bitmap = [[False] * self.state_size for _ in range(max_size)]
             for tag in label.tags:
                 start = tag.start
-                for i, bitmap in enumerate(
-                    self.get_tag_bitmap(tag.label, tag.length), start
-                ):
+                for i, bitmap in enumerate(self.get_tag_bitmap(tag), start):
                     tag_bitmap[i] = [a or b for a, b in zip(tag_bitmap[i], bitmap)]
 
             for i in range(label.size):
@@ -433,17 +417,15 @@ class LabelSet:
         for indices, alignment in zip(tag_indices, alignments):
             tags = []
             for now, index in enumerate(indices):
-                status = self.get_status(index)
-                if status is None:
+                move, label = self.__states[index]
+                if label is None:
                     continue
 
-                label = self.get_label(index)
-
-                if status is Status.UNIT:
+                if move is Move.UNIT:
                     tags.append(Tag.create(now, now + 1, label))
-                elif status is Status.END:
+                elif move is Move.END:
                     prev = now
-                    while self.get_status(indices[prev]) is not Status.START:
+                    while self.__states[indices[prev]][0] is not Move.START:
                         prev -= 1
                     tags.append(Tag.create(prev, now + 1, label))
 
@@ -455,52 +437,7 @@ class LabelSet:
 
         return tuple(labels)
 
-    def get_label(self, index: int) -> str:
-        """Returns a label associated with a given index.
-
-        Args:
-            index: An integer representing a label with a state.
-
-        Returns:
-            A string representing a label, or None if a given index represents
-            an outside status.
-        """
-        if index <= 0 or index >= self.get_tag_size():
-            raise ValueError("Invalid index.")
-
-        return self.__labels[bisect_left(self.__unit_indices, index)]
-
-    def get_status(self, index: int) -> Status | None:
-        """Returns a status associated with a given index.
-
-        Args:
-            index: An integer representing a label with a state.
-
-        Returns:
-            A status associated with an index, or None if an given index represents
-            an outside status.
-
-        """
-        if index < 0 or index >= self.get_tag_size():
-            raise ValueError("Invalid index.")
-
-        if index == self.outside_index:
-            return None
-
-        label = self.get_label(index)
-
-        if self.__get_start_index(label) == index:
-            return Status.START
-        elif self.__get_inside_index(label) == index:
-            return Status.INSIDE
-        elif self.__get_end_index(label) == index:
-            return Status.END
-        elif self.__get_unit_index(label) == index:
-            return Status.UNIT
-        else:
-            raise ValueError("Invalid index.")
-
-    def get_start_states(self) -> list[bool]:
+    def __get_start_states(self) -> tuple[bool, ...]:
         """Returns a list of booleans representing an allowed start states.
 
         Returns:
@@ -508,18 +445,16 @@ class LabelSet:
             where each item is: True for its index allowed and False otherwise.
 
         """
-        states = [False] * self.get_tag_size()
+        states = [False] * self.state_size
         # Always allowed starts from outside status
         states[self.outside_index] = True
 
-        for labeled_start_index in self.__start_indices:
-            labeled_unit_index = labeled_start_index + 3
-            states[labeled_start_index] = True
-            states[labeled_unit_index] = True
+        for index in chain(self.__start_indices.values(), self.__unit_indices.values()):
+            states[index] = True
 
-        return states
+        return tuple(states)
 
-    def get_end_states(self) -> list[bool]:
+    def __get_end_states(self) -> tuple[bool, ...]:
         """Returns a list of booleans representing an allowed end states.
 
         Returns:
@@ -527,17 +462,16 @@ class LabelSet:
             where each item is: True for its index allowed and False otherwise.
 
         """
-        states = [False] * self.get_tag_size()
+        states = [False] * self.state_size
         # Always allowed ends with outside status
         states[self.outside_index] = True
 
-        for labeled_unit_index in self.__unit_indices:
-            labeled_end_index = labeled_unit_index - 1
-            states[labeled_end_index] = True
-            states[labeled_unit_index] = True
-        return states
+        for index in chain(self.__end_indices.values(), self.__unit_indices.values()):
+            states[index] = True
 
-    def get_transitions(self) -> list[list[bool]]:
+        return tuple(states)
+
+    def __get_transitions(self) -> tuple[tuple[bool, ...], ...]:
         """Returns a list of lists of booleans representing
         allowed transitions between tags.
 
@@ -546,29 +480,36 @@ class LabelSet:
             where each item is: True for an allowed transition and False otherwise.
 
         """
-        transitions = [
-            [False] * self.get_tag_size() for _ in range(self.get_tag_size())
-        ]
+        transitions = [[False] * self.state_size for _ in range(self.state_size)]
+
         outside_index = self.outside_index
-        transitions[outside_index] = self.get_start_states()
 
-        for labeled_start_index in self.__start_indices:
-            labeled_inside_index = labeled_start_index + 1
-            labeled_end_index = labeled_start_index + 2
-            labeled_unit_index = labeled_start_index + 3
+        transitions[outside_index][outside_index] = True
+        for ok_index in chain(
+            self.__start_indices.values(), self.__unit_indices.values()
+        ):
+            transitions[outside_index][ok_index] = True
 
-            transitions[labeled_start_index][labeled_inside_index] = True
-            transitions[labeled_start_index][labeled_end_index] = True
+        for label, start_index in self.__start_indices.items():
+            transitions[start_index][self.__inside_indices[label]] = True
+            transitions[start_index][self.__end_indices[label]] = True
 
-            transitions[labeled_inside_index][labeled_inside_index] = True
-            transitions[labeled_inside_index][labeled_end_index] = True
+        for label, inside_index in self.__inside_indices.items():
+            transitions[inside_index][self.__inside_indices[label]] = True
+            transitions[inside_index][self.__end_indices[label]] = True
 
-            transitions[labeled_end_index][outside_index] = True
-            for i in self.__start_indices + self.__unit_indices:
-                transitions[labeled_end_index][i] = True
+        for end_index in self.__end_indices.values():
+            transitions[end_index][outside_index] = True
+            for ok_index in chain(
+                self.__start_indices.values(), self.__unit_indices.values()
+            ):
+                transitions[end_index][ok_index] = True
 
-            transitions[labeled_unit_index][outside_index] = True
-            for i in self.__start_indices + self.__unit_indices:
-                transitions[labeled_unit_index][i] = True
+        for unit_index in self.__unit_indices.values():
+            transitions[unit_index][outside_index] = True
+            for ok_index in chain(
+                self.__start_indices.values(), self.__unit_indices.values()
+            ):
+                transitions[unit_index][ok_index] = True
 
-        return transitions
+        return tuple(tuple(row) for row in transitions)
