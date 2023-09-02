@@ -337,15 +337,15 @@ class LabelSet:
                 f"{len(labels)} != {len(alignments)}"
             )
 
-        labels_token_based = [
+        labels_target = [
             alignment.align_with_target(label=label)
             for label, alignment in zip(labels, alignments)
         ]
 
-        max_size = max(label.size for label in labels_token_based)
+        max_size = max(label.size for label in labels_target)
 
         batch = []
-        for label in labels_token_based:
+        for label in labels_target:
             tag_indices = [self.outside_index] * label.size + [self.padding_index] * (
                 max_size - label.size
             )
@@ -378,15 +378,15 @@ class LabelSet:
                 f"{len(labels)} != {len(alignments)}"
             )
 
-        labels_token_based = [
+        labels_target = [
             alignment.align_with_target(label=label)
             for label, alignment in zip(labels, alignments)
         ]
 
-        max_size = max(label.size for label in labels_token_based)
+        max_size = max(label.size for label in labels_target)
 
         batch = []
-        for label in labels_token_based:
+        for label in labels_target:
             tag_bitmap = [[False] * self.state_size for _ in range(max_size)]
             for tag in label.tags:
                 start = tag.start
