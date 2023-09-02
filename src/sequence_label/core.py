@@ -285,7 +285,15 @@ class LabelSet:
         return self.__padding_index
 
     def __contains__(self, label: str) -> bool:
-        return label in self.__start_indices
+        return all(
+            label in indices
+            for indices in (
+                self.__start_indices,
+                self.__inside_indices,
+                self.__end_indices,
+                self.__unit_indices,
+            )
+        )
 
     def get_tag_indices(self, tag: Tag) -> list[int]:
         if tag.label not in self:
