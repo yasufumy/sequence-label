@@ -158,6 +158,14 @@ class LabelAlignment:
     def target_size(self) -> int:
         return len(self.__source_spans)
 
+    def get_span_lengths(self, base: Base) -> tuple[int, ...]:
+        if base == Base.SOURCE:
+            return tuple(span.length if span else 0 for span in self.__source_spans)
+        elif base == Base.TARGET:
+            return tuple(span.length if span else 0 for span in self.__target_spans)
+        else:
+            raise ValueError(f"{base} is not supported.")
+
     def align_with_source(self, label: SequenceLabel) -> SequenceLabel:
         """Converts token-based tags to character-based tags.
 
@@ -401,7 +409,9 @@ class LabelSet:
         return batch
 
     def decode(
-        self, tag_indices: list[list[int]], alignments: tuple[LabelAlignment, ...]
+        self,
+        tag_indices: list[list[int]],
+        alignments: tuple[LabelAlignment, ...] | None = None,
     ) -> tuple[SequenceLabel, ...]:
         """Creates a set of character-based tags from given tag indices.
 
@@ -411,7 +421,7 @@ class LabelSet:
         Returns:
             A character-based sequence label.
         """
-        if len(tag_indices) != len(alignments):
+        if alignments is not None and len(tag_indices) != len(alignments):
             raise ValueError(
                 "The size of tag_indices must be the same as its alignments: "
                 f"{len(tag_indices)} != {len(alignments)}"
@@ -437,7 +447,7 @@ class LabelSet:
                     raise ValueError("Invalid indices.")
 
         labels = []
-        for indices, alignment in zip(tag_indices, alignments):
+        for indices in tag_indices:
             tags = []
             for now, index in enumerate(indices):
                 move, label = self.__states[index]
@@ -453,14 +463,16 @@ class LabelSet:
                     tags.append(Tag.create(start=prev, end=now + 1, label=label))
 
             labels.append(
-                alignment.align_with_source(
-                    label=SequenceLabel(
-                        tags=tuple(tags), size=len(indices), base=Base.TARGET
-                    )
-                )
+                SequenceLabel(tags=tuple(tags), size=len(indices), base=Base.TARGET)
             )
 
-        return tuple(labels)
+        if alignments is not None:
+            return tuple(
+                alignment.align_with_source(label)
+                for label, alignment in zip(labels, alignments)
+            )
+        else:
+            return tuple(labels)
 
     def __get_start_states(self) -> tuple[bool, ...]:
         """Returns a list of booleans representing an allowed start states.
