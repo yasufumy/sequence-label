@@ -107,10 +107,11 @@ def test_decoded_labels_are_valid(
 
 
 @pytest.mark.parametrize(
-    ("text", "labels", "expected"),
+    ("text", "tokenizer_type", "labels", "expected"),
     [
         (
             "Tokyo is the capital of Japan.",
+            "tokenizer",
             (
                 SequenceLabel.from_dict(
                     tags=[
@@ -124,6 +125,7 @@ def test_decoded_labels_are_valid(
         ),
         (
             "Tokyo is the capital of Japan." * 100,
+            "tokenizer",
             (
                 SequenceLabel.from_dict(
                     tags=[
@@ -139,17 +141,47 @@ def test_decoded_labels_are_valid(
             ),
             [[0] + [1, 3, 0, 0, 0, 0, 4, 0] * 63 + [1, 3, 0, 0, 0, 0] + [0]],
         ),
+        (
+            ["Named-entity", "recognition", "is", "very", "interesting", "."],
+            "tokenizer_word",
+            (
+                SequenceLabel.from_dict(
+                    tags=[{"start": 0, "end": 2, "label": "MISC"}], size=6
+                ),
+            ),
+            [[0, 5, 6, 6, 7, 0, 0, 0, 0, 0]],
+        ),
+        (
+            ["Named-entity", "recognition", "is", "very", "interesting", "."] * 300,
+            "tokenizer_word",
+            (
+                SequenceLabel.from_dict(
+                    tags=[
+                        {"start": 0 + 6 * i, "end": 2 + 6 * i, "label": "MISC"}
+                        for i in range(100)
+                    ],
+                    size=1800,
+                ),
+            ),
+            [[0] + [5, 6, 6, 7, 0, 0, 0, 0] * 63 + [5, 6, 6, 7, 0, 0] + [0]],
+        ),
     ],
 )
 def test_tag_indices_are_valid(
-    tokenizer: PreTrainedTokenizerFast,
+    request: pytest.FixtureRequest,
     label_set: LabelSet,
-    text: str,
+    text: str | list[str],
+    tokenizer_type: str,
     labels: tuple[SequenceLabel, ...],
     expected: list[list[int]],
 ) -> None:
+    tokenizer = request.getfixturevalue(tokenizer_type)
     batch_encoding = tokenizer([text], truncation=True)
-    alignments = get_alignments(batch_encoding=batch_encoding, lengths=[len(text)])
+    alignments = get_alignments(
+        batch_encoding=batch_encoding,
+        lengths=[len(text)],
+        is_split_into_words=isinstance(text, list),
+    )
 
     tag_indices = label_set.encode_to_tag_indices(labels=labels, alignments=alignments)
 
@@ -716,7 +748,10 @@ def test_tag_bitmap_is_valid(
     expected: list[list[list[bool]]],
 ) -> None:
     batch_encoding = tokenizer([text], truncation=True)
-    alignments = get_alignments(batch_encoding=batch_encoding, lengths=[len(text)])
+    alignments = get_alignments(
+        batch_encoding=batch_encoding,
+        lengths=[len(text)],
+    )
 
     tag_bitmap = label_set.encode_to_tag_bitmap(labels=labels, alignments=alignments)
 
