@@ -31,4 +31,4 @@ jobs:
         mypy
     - name: Run tests
       run: |
-        pytest --cov=src/sequence-label --cov-report=term-missing
+        pytest --cov=sequence_label --cov-report=term-missing -vv

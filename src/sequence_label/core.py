@@ -119,16 +119,23 @@ class LabelAlignment:
     """
 
     def __init__(
-        self, source_spans: tuple[Span | None, ...], target_indices: tuple[int, ...]
+        self,
+        source_spans: tuple[Span | None, ...],
+        target_spans: tuple[Span | None, ...],
     ):
         target_size = len(source_spans)
-        if not all(index == -1 or 0 <= index < target_size for index in target_indices):
+        if not all(
+            0 <= span.start < target_size  # check if start is valid
+            and 0 <= span.start + span.length - 1 < target_size  # check if end is valid
+            for span in target_spans
+            if span is not None
+        ):
             raise ValueError(
-                "Each item in token_indices must be -1 or"
-                f" in between 0 and {target_size - 1}: {target_indices}"
+                "Each item in token_spans must be -1 or"
+                f" in between 0 and {target_size - 1}: {target_spans}"
             )
 
-        source_size = len(target_indices)
+        source_size = len(target_spans)
         if not all(
             0 <= span.start < source_size  # check if start is valid
             and 0 <= span.start + span.length - 1 < source_size  # check if end is valid
@@ -141,15 +148,23 @@ class LabelAlignment:
             )
 
         self.__source_spans = source_spans
-        self.__target_indices = target_indices
+        self.__target_spans = target_spans
 
     @property
     def source_size(self) -> int:
-        return len(self.__target_indices)
+        return len(self.__target_spans)
 
     @property
     def target_size(self) -> int:
         return len(self.__source_spans)
+
+    def get_span_lengths(self, base: Base) -> tuple[int, ...]:
+        if base == Base.SOURCE:
+            return tuple(span.length if span else 0 for span in self.__source_spans)
+        elif base == Base.TARGET:
+            return tuple(span.length if span else 0 for span in self.__target_spans)
+        else:
+            raise ValueError(f"{base} is not supported.")
 
     def align_with_source(self, label: SequenceLabel) -> SequenceLabel:
         """Converts token-based tags to character-based tags.
@@ -160,36 +175,7 @@ class LabelAlignment:
         Returns:
             A character-based sequence label.
         """
-        if self.target_size != label.size:
-            raise ValueError(
-                "label.size must be the same as target_size: "
-                f"{label.size} != {self.target_size}"
-            )
-
-        if label.base is not Base.TARGET:
-            raise ValueError(f"label.base must be Base.TARGET: {label.base}")
-
-        tags = []
-        for tag in label.tags:
-            target_span = tag.span
-
-            source_span_start = self.__source_spans[target_span.start]
-            source_span_end = self.__source_spans[
-                target_span.start + target_span.length - 1
-            ]
-
-            if source_span_start is None or source_span_end is None:
-                continue
-
-            tags.append(
-                Tag.create(
-                    start=source_span_start.start,
-                    end=source_span_end.start + source_span_end.length,
-                    label=tag.label,
-                )
-            )
-
-        return SequenceLabel(tags=tuple(tags), size=self.source_size, base=Base.SOURCE)
+        return self.__align(label=label, src=Base.TARGET, tgt=Base.SOURCE)
 
     def align_with_target(self, label: SequenceLabel) -> SequenceLabel:
         """Converts character-based tags to token-based tags. Note that this operation
@@ -202,25 +188,45 @@ class LabelAlignment:
         Returns:
             A token-based sequence label.
         """
-        if self.source_size != label.size:
+        return self.__align(label=label, src=Base.SOURCE, tgt=Base.TARGET)
+
+    def __align(self, label: SequenceLabel, src: Base, tgt: Base) -> SequenceLabel:
+        if tgt == Base.TARGET:
+            source_size = self.source_size
+            target_size = self.target_size
+            spans = self.__target_spans
+        else:
+            source_size = self.target_size
+            target_size = self.source_size
+            spans = self.__source_spans
+
+        if label.size != source_size:
             raise ValueError(
-                "label.size must be the same as source_size: "
-                f"{label.size} != {self.source_size}"
+                f"label.size must be the same as {source_size}: {label.size} "
             )
 
-        if label.base != Base.SOURCE:
-            raise ValueError(f"label.base must be Base.SOURCE: {label.base}")
+        if label.base is not src:
+            raise ValueError(f"label.base must be {src}: {label.base}")
 
         tags = []
         for tag in label.tags:
-            start = self.__target_indices[tag.start]
-            end = self.__target_indices[tag.start + tag.length - 1]  # inclusive
-            if start == -1 or end == -1:
-                # There is no char span which strictly corresponds a given tag.
-                continue
-            tags.append(Tag.create(start=start, end=end + 1, label=tag.label))
+            target_span = tag.span
 
-        return SequenceLabel(tags=tuple(tags), size=self.target_size, base=Base.TARGET)
+            source_span_start = spans[target_span.start]
+            source_span_end = spans[target_span.start + target_span.length - 1]
+
+            if source_span_start is None or source_span_end is None:
+                continue
+
+            tags.append(
+                Tag.create(
+                    start=source_span_start.start,
+                    end=source_span_end.start + source_span_end.length,
+                    label=tag.label,
+                )
+            )
+
+        return SequenceLabel(tags=tuple(tags), size=target_size, base=tgt)
 
 
 class Move(Enum):
@@ -285,7 +291,15 @@ class LabelSet:
         return self.__padding_index
 
     def __contains__(self, label: str) -> bool:
-        return label in self.__start_indices
+        return all(
+            label in indices
+            for indices in (
+                self.__start_indices,
+                self.__inside_indices,
+                self.__end_indices,
+                self.__unit_indices,
+            )
+        )
 
     def get_tag_indices(self, tag: Tag) -> list[int]:
         if tag.label not in self:
@@ -329,15 +343,15 @@ class LabelSet:
                 f"{len(labels)} != {len(alignments)}"
             )
 
-        labels_token_based = [
+        labels_target = [
             alignment.align_with_target(label=label)
             for label, alignment in zip(labels, alignments)
         ]
 
-        max_size = max(label.size for label in labels_token_based)
+        max_size = max(label.size for label in labels_target)
 
         batch = []
-        for label in labels_token_based:
+        for label in labels_target:
             tag_indices = [self.outside_index] * label.size + [self.padding_index] * (
                 max_size - label.size
             )
@@ -370,15 +384,15 @@ class LabelSet:
                 f"{len(labels)} != {len(alignments)}"
             )
 
-        labels_token_based = [
+        labels_target = [
             alignment.align_with_target(label=label)
             for label, alignment in zip(labels, alignments)
         ]
 
-        max_size = max(label.size for label in labels_token_based)
+        max_size = max(label.size for label in labels_target)
 
         batch = []
-        for label in labels_token_based:
+        for label in labels_target:
             tag_bitmap = [[False] * self.state_size for _ in range(max_size)]
             for tag in label.tags:
                 start = tag.start
@@ -395,7 +409,9 @@ class LabelSet:
         return batch
 
     def decode(
-        self, tag_indices: list[list[int]], alignments: tuple[LabelAlignment, ...]
+        self,
+        tag_indices: list[list[int]],
+        alignments: tuple[LabelAlignment, ...] | None = None,
     ) -> tuple[SequenceLabel, ...]:
         """Creates a set of character-based tags from given tag indices.
 
@@ -405,7 +421,7 @@ class LabelSet:
         Returns:
             A character-based sequence label.
         """
-        if len(tag_indices) != len(alignments):
+        if alignments is not None and len(tag_indices) != len(alignments):
             raise ValueError(
                 "The size of tag_indices must be the same as its alignments: "
                 f"{len(tag_indices)} != {len(alignments)}"
@@ -431,7 +447,7 @@ class LabelSet:
                     raise ValueError("Invalid indices.")
 
         labels = []
-        for indices, alignment in zip(tag_indices, alignments):
+        for indices in tag_indices:
             tags = []
             for now, index in enumerate(indices):
                 move, label = self.__states[index]
@@ -447,14 +463,16 @@ class LabelSet:
                     tags.append(Tag.create(start=prev, end=now + 1, label=label))
 
             labels.append(
-                alignment.align_with_source(
-                    label=SequenceLabel(
-                        tags=tuple(tags), size=len(indices), base=Base.TARGET
-                    )
-                )
+                SequenceLabel(tags=tuple(tags), size=len(indices), base=Base.TARGET)
             )
 
-        return tuple(labels)
+        if alignments is not None:
+            return tuple(
+                alignment.align_with_source(label)
+                for label, alignment in zip(labels, alignments)
+            )
+        else:
+            return tuple(labels)
 
     def __get_start_states(self) -> tuple[bool, ...]:
         """Returns a list of booleans representing an allowed start states.
