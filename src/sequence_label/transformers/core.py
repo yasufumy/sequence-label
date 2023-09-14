@@ -13,6 +13,7 @@ def get_alignments(
     batch_encoding: BatchEncoding,
     lengths: list[int],
     is_split_into_words: bool = False,
+    padding_token: str | None = None,
 ) -> tuple[LabelAlignment, ...]:
     if not batch_encoding.is_fast:
         raise ValueError("Please use PreTrainedTokenizerFast.")
@@ -20,7 +21,11 @@ def get_alignments(
     alignments = []
     if not is_split_into_words:
         for i, length in enumerate(lengths):
-            num_tokens = len(batch_encoding.tokens(i))
+            num_tokens = sum(
+                1
+                for token in batch_encoding.tokens(i)
+                if padding_token is None or token != padding_token
+            )
             src_char_spans: list[Span | None] = [None] * num_tokens
             for j in range(num_tokens):
                 span = batch_encoding.token_to_chars(i, j)
