@@ -18,8 +18,22 @@ def create_alignments(
     is_split_into_words: bool = False,
     padding_token: str | None = None,
 ) -> tuple[LabelAlignment, ...]:
+    """Creates instances of LabelAlignment from an instance of BatchEncoding that
+    is a result of the Huggingface tokenizer.
+
+    Args:
+        batch_encoding: An instance of BatchEncoding.
+        lengths: A list of integers where each item represents a length of text.
+        is_split_into_words: A boolean representing whether is_split_into_words was
+            enabled during tokenization. Defaults to False.
+        padding_token: A string representing a special token used to make lists of
+            tokens the same size for batching purpose. Defaults to None.
+
+    Returns:
+        a tuple of instances of LabelAlignment.
+    """
     if not batch_encoding.is_fast:
-        raise ValueError("Please use PreTrainedTokenizerFast.")
+        raise ValueError("Please use a subclass of PreTrainedTokenizerFast.")
 
     alignments = []
     if not is_split_into_words:
