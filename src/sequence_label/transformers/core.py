@@ -9,7 +9,10 @@ if TYPE_CHECKING:
     from transformers import BatchEncoding
 
 
-def get_alignments(
+__all__ = ["create_alignments"]
+
+
+def create_alignments(
     batch_encoding: BatchEncoding,
     lengths: list[int],
     is_split_into_words: bool = False,

@@ -5,6 +5,16 @@ from enum import Enum, auto
 from itertools import chain
 from typing import TypedDict
 
+__all__ = [
+    "Span",
+    "Tag",
+    "SequenceLabel",
+    "LabelSet",
+    "LabelAlignment",
+    "TagDict",
+    "Base",
+]
+
 
 @dataclass(frozen=True, order=True)
 class Span:
