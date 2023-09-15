@@ -325,7 +325,9 @@ class LabelSet:
         return bitmap
 
     def encode_to_tag_indices(
-        self, labels: tuple[SequenceLabel, ...], alignments: tuple[LabelAlignment, ...]
+        self,
+        labels: tuple[SequenceLabel, ...],
+        alignments: tuple[LabelAlignment, ...] | None = None,
     ) -> list[list[int]]:
         """Creates a list of active tag indices where given tags are expected
         to be character-based.
@@ -337,21 +339,22 @@ class LabelSet:
             A list of integers, where each integer represents an active tag.
 
         """
-        if len(labels) != len(alignments):
+        if alignments is not None and len(labels) != len(alignments):
             raise ValueError(
                 "The size of labels must be the same as its alignments: "
                 f"{len(labels)} != {len(alignments)}"
             )
 
-        labels_target = [
-            alignment.align_with_target(label=label)
-            for label, alignment in zip(labels, alignments)
-        ]
+        if alignments is not None:
+            labels = tuple(
+                alignment.align_with_target(label=label)
+                for label, alignment in zip(labels, alignments)
+            )
 
-        max_size = max(label.size for label in labels_target)
+        max_size = max(label.size for label in labels)
 
         batch = []
-        for label in labels_target:
+        for label in labels:
             tag_indices = [self.outside_index] * label.size + [self.padding_index] * (
                 max_size - label.size
             )
@@ -366,7 +369,9 @@ class LabelSet:
         return batch
 
     def encode_to_tag_bitmap(
-        self, labels: tuple[SequenceLabel, ...], alignments: tuple[LabelAlignment, ...]
+        self,
+        labels: tuple[SequenceLabel, ...],
+        alignments: tuple[LabelAlignment, ...] | None = None,
     ) -> list[list[list[bool]]]:
         """Creates a tag bitmap indicating the presence of active tags for each token
         where given tags are expected to be character-based.
@@ -378,21 +383,22 @@ class LabelSet:
             A list of lists of booleans, where each boolean represents an active tag.
 
         """
-        if len(labels) != len(alignments):
+        if alignments is not None and len(labels) != len(alignments):
             raise ValueError(
                 "The size of labels must be the same as its alignments: "
                 f"{len(labels)} != {len(alignments)}"
             )
 
-        labels_target = [
-            alignment.align_with_target(label=label)
-            for label, alignment in zip(labels, alignments)
-        ]
+        if alignments is not None:
+            labels = tuple(
+                alignment.align_with_target(label=label)
+                for label, alignment in zip(labels, alignments)
+            )
 
-        max_size = max(label.size for label in labels_target)
+        max_size = max(label.size for label in labels)
 
         batch = []
-        for label in labels_target:
+        for label in labels:
             tag_bitmap = [[False] * self.state_size for _ in range(max_size)]
             for tag in label.tags:
                 start = tag.start
