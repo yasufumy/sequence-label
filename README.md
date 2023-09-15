@@ -10,7 +10,7 @@ Import the necessary dependencies:
 from transformers import AutoTokenizer
 
 from sequence_label import LabelSet, SequenceLabel
-from sequence_label.transformers import get_alignments
+from sequence_label.transformers import create_alignments
 ```
 
 Start by creating sequence label data using the `SequenceLabel.from_dict` method. Define your text and associated labels:
@@ -35,13 +35,13 @@ texts = (text1, text2)
 labels = (label1, label2)
 ```
 
-Next, tokenize your `texts` and calculate the `alignments` using the `get_alignments` function. `alignments` is an instance of `LabelAlignment` that aligns sequence labels with the tokenized result:
+Next, tokenize your `texts` and calculate the `alignments` using the `create_alignments` function. `alignments` is an instance of `LabelAlignment` that aligns sequence labels with the tokenized result:
 
 ```py
 tokenizer = AutoTokenizer.from_pretrained("roberta-base")
 batch_encoding = tokenizer(texts)
 
-alignments = get_alignments(
+alignments = create_alignments(
     batch_encoding=batch_encoding,
     lengths=list(map(len, texts)),
     padding_token=tokenizer.pad_token
