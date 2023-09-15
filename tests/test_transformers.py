@@ -7,7 +7,7 @@ import pytest
 from transformers import AutoTokenizer
 
 from sequence_label import LabelSet, SequenceLabel
-from sequence_label.transformers import get_alignments
+from sequence_label.transformers import create_alignments
 
 if TYPE_CHECKING:
     from transformers import PreTrainedTokenizerFast
@@ -95,7 +95,7 @@ def test_decoded_labels_are_valid(
     tokenizer = request.getfixturevalue(tokenizer_type)
     batch_encoding = tokenizer(text)
 
-    alignments = get_alignments(
+    alignments = create_alignments(
         batch_encoding=batch_encoding,
         lengths=[len(text)],
         is_split_into_words=isinstance(text, list),
@@ -177,7 +177,7 @@ def test_tag_indices_are_valid(
 ) -> None:
     tokenizer = request.getfixturevalue(tokenizer_type)
     batch_encoding = tokenizer([text], truncation=True)
-    alignments = get_alignments(
+    alignments = create_alignments(
         batch_encoding=batch_encoding,
         lengths=[len(text)],
         is_split_into_words=isinstance(text, list),
@@ -748,7 +748,7 @@ def test_tag_bitmap_is_valid(
     expected: list[list[list[bool]]],
 ) -> None:
     batch_encoding = tokenizer([text], truncation=True)
-    alignments = get_alignments(
+    alignments = create_alignments(
         batch_encoding=batch_encoding,
         lengths=[len(text)],
     )
