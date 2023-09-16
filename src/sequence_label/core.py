@@ -5,6 +5,16 @@ from enum import Enum, auto
 from itertools import chain
 from typing import TypedDict
 
+__all__ = [
+    "Span",
+    "Tag",
+    "SequenceLabel",
+    "LabelSet",
+    "LabelAlignment",
+    "TagDict",
+    "Base",
+]
+
 
 @dataclass(frozen=True, order=True)
 class Span:
@@ -71,25 +81,41 @@ class SequenceLabel:
 
     def __post_init__(self) -> None:
         if any(self.tags[i] > self.tags[i + 1] for i in range(len(self.tags) - 1)):
-            raise ValueError("Tags must be sorted by Tag.start and Tag.length.")
+            raise ValueError(
+                "tags must be sorted by tag.start, tag.length and tag.label."
+            )
 
         for tag in self.tags:
             if tag.start < 0 or tag.start >= self.size:
                 raise ValueError(
                     "An invalid tag is found. start must be"
-                    f" in between 0 and {self.size - 1}: {tag.start}"
+                    f" between 0 and {self.size - 1}: {tag.start}"
                 )
             end = tag.start + tag.length
             if end < 0 or end > self.size:
                 raise ValueError(
                     "An invalid tag is found. length must be"
-                    f" in between 1 and {self.size}: {tag.length}"
+                    f" between 1 and {self.size}: {tag.length}"
                 )
 
     @classmethod
     def from_dict(
         cls, tags: list[TagDict], size: int, base: Base = Base.SOURCE
     ) -> SequenceLabel:
+        """A named constructor for creating an instance of SequenceLabel from a list
+        of dictionaries, where each dictionary has three keys start, end, and label.
+        A start represents a position in the text where a tag starts. A end represents
+        a position in the text where a tag ends. A label represents what you want to
+        assign to a span of the text defined by a start and a end.
+
+        Args:
+            tags: A list of an instance of TagDict.
+            size: A integer representing a length of a text.
+            base: A member of Base. Defaults to Base.SOURCE.
+
+        Returns:
+            An instance of SequenceLabel.
+        """
         return cls(
             tags=tuple(
                 sorted(
@@ -103,19 +129,28 @@ class SequenceLabel:
 
 
 class LabelAlignment:
-    """An alignment class responsible for manipulating character-based tags based on
-    a tokenization result, which is useful for encoding tags to tag_indices/tag_bitmap
-    and decoding tag_indices/tag_bitmap to tags.
+    """The LabelAlignment class manages the alignment of labels from source sequences
+    to target sequences after tokenization, and vice versa.
 
     Args:
-        char_spans: A tuple of character spans for each token, or None if
-            there is no corresponding span.
-        token_indices: A tuple of token indices for each character, or -1 if there is
-            no corresponding token.
+        source_spans: A tuple where each item represents an interval in the source
+            sequence. The index of the item in the tuple corresponds to a specific
+            position in the target sequence. In other words, an interval in
+            the source sequence and a position in the target sequence have a one-to-one
+            correspondence.
+            If a span is None, it indicates that the respective position in the target
+            sequence doesn't have a matching interval in the source sequence.
+        target_spans: A tuple where each item represents an interval in the target
+            sequence. The index of the item in the tuple corresponds to a specific
+            position in the source sequence. In other words, an interval in
+            the target sequence and a position in the source sequence have a one-to-one
+            correspondence.
+            If a span is None, it indicates that the respective position in the source
+            sequence doesn't have a matching interval in the target sequence.
 
     Attributes:
-        char_length: The text length before tokenization.
-        num_tokens: The number of tokens after tokenization.
+        source_size: An integer representing the number of items in the source sequence.
+        target_size: An integer representing the number of items in the target sequence.
     """
 
     def __init__(
@@ -131,8 +166,8 @@ class LabelAlignment:
             if span is not None
         ):
             raise ValueError(
-                "Each item in token_spans must be -1 or"
-                f" in between 0 and {target_size - 1}: {target_spans}"
+                "Each item in token_spans must be None or"
+                f" between 0 and {target_size - 1}: {target_spans}"
             )
 
         source_size = len(target_spans)
@@ -144,7 +179,7 @@ class LabelAlignment:
         ):
             raise ValueError(
                 "Each span in char_spans must be None or"
-                f" in between 0 and {source_size - 1}: {source_spans}"
+                f" between 0 and {source_size - 1}: {source_spans}"
             )
 
         self.__source_spans = source_spans
@@ -238,11 +273,25 @@ class Move(Enum):
 
 
 class LabelSet:
-    """A label set represents a set of labels used for tagging, where each label
-    has four states (start, inside, end, unit).
+    """The LabelSet class manages a set of labels and provides functionality for
+    creating tensors from sequence labeling data and reconstructing sequence labeling
+    data from tensors. Each label binds with four states, start, end, inside, and
+    unit for sequence labeling purposes.
 
     Args:
         labels: A set of strings, where each string represents a label.
+
+    Attributes:
+        state_size: An integer representing total number of labels with states.
+        outside_index: An integer corresponding to an outside state.
+        padding_index: An integer representing a padding value.
+        start_states: A list of boolean values representing the start states.
+            True indicates an allowed state, while False indicates an otherwise state.
+        end_states: A list of boolean values representing the end states.
+            True indicates an allowed state, while False indicates an otherwise state.
+        transitions: A list of lists of boolean values representing the transitions.
+            True indicates an allowed transition, while False indicates an otherwise
+            transition.
     """
 
     def __init__(self, labels: set[str], padding_index: int = -1):
@@ -264,9 +313,9 @@ class LabelSet:
             for move in (Move.START, Move.INSIDE, Move.END, Move.UNIT):
                 self.__states.append((move, label))
 
-        self.start_states = self.__get_start_states()
-        self.transitions = self.__get_transitions()
-        self.end_states = self.__get_end_states()
+        self.start_states = self.__create_start_states()
+        self.transitions = self.__create_transitions()
+        self.end_states = self.__create_end_states()
 
     @property
     def state_size(self) -> int:
@@ -325,33 +374,36 @@ class LabelSet:
         return bitmap
 
     def encode_to_tag_indices(
-        self, labels: tuple[SequenceLabel, ...], alignments: tuple[LabelAlignment, ...]
+        self,
+        labels: tuple[SequenceLabel, ...],
+        alignments: tuple[LabelAlignment, ...] | None = None,
     ) -> list[list[int]]:
-        """Creates a list of active tag indices where given tags are expected
-        to be character-based.
+        """Creates a list of active tag indices from given labels.
 
         Args:
-            label: An instance of SequenceLabel.
+            labels: A tuple of instances of SequenceLabel.
+            alignments: A tuple of instances of LabelAlignment. Defaults to None.
 
         Returns:
             A list of integers, where each integer represents an active tag.
 
         """
-        if len(labels) != len(alignments):
+        if alignments is not None and len(labels) != len(alignments):
             raise ValueError(
                 "The size of labels must be the same as its alignments: "
                 f"{len(labels)} != {len(alignments)}"
             )
 
-        labels_target = [
-            alignment.align_with_target(label=label)
-            for label, alignment in zip(labels, alignments)
-        ]
+        if alignments is not None:
+            labels = tuple(
+                alignment.align_with_target(label=label)
+                for label, alignment in zip(labels, alignments)
+            )
 
-        max_size = max(label.size for label in labels_target)
+        max_size = max(label.size for label in labels)
 
         batch = []
-        for label in labels_target:
+        for label in labels:
             tag_indices = [self.outside_index] * label.size + [self.padding_index] * (
                 max_size - label.size
             )
@@ -366,33 +418,37 @@ class LabelSet:
         return batch
 
     def encode_to_tag_bitmap(
-        self, labels: tuple[SequenceLabel, ...], alignments: tuple[LabelAlignment, ...]
+        self,
+        labels: tuple[SequenceLabel, ...],
+        alignments: tuple[LabelAlignment, ...] | None = None,
     ) -> list[list[list[bool]]]:
-        """Creates a tag bitmap indicating the presence of active tags for each token
-        where given tags are expected to be character-based.
+        """Creates a tag bitmap indicating the presence of active tags from
+        given labels.
 
         Args:
-            label: An instance of SequenceLabel.
+            labels: A tuple of instances of SequenceLabel.
+            alignments: A tuple of instances of LabelAlignment. Defaults to None.
 
         Returns:
             A list of lists of booleans, where each boolean represents an active tag.
 
         """
-        if len(labels) != len(alignments):
+        if alignments is not None and len(labels) != len(alignments):
             raise ValueError(
                 "The size of labels must be the same as its alignments: "
                 f"{len(labels)} != {len(alignments)}"
             )
 
-        labels_target = [
-            alignment.align_with_target(label=label)
-            for label, alignment in zip(labels, alignments)
-        ]
+        if alignments is not None:
+            labels = tuple(
+                alignment.align_with_target(label=label)
+                for label, alignment in zip(labels, alignments)
+            )
 
-        max_size = max(label.size for label in labels_target)
+        max_size = max(label.size for label in labels)
 
         batch = []
-        for label in labels_target:
+        for label in labels:
             tag_bitmap = [[False] * self.state_size for _ in range(max_size)]
             for tag in label.tags:
                 start = tag.start
@@ -413,13 +469,14 @@ class LabelSet:
         tag_indices: list[list[int]],
         alignments: tuple[LabelAlignment, ...] | None = None,
     ) -> tuple[SequenceLabel, ...]:
-        """Creates a set of character-based tags from given tag indices.
+        """Reconstructs labels from given tag indices.
 
         Args:
             tag_indices: A list of integer, where each item represents a tag index.
+            alignments: A tuple of instances of LabelAlignment. Defaults to None.
 
         Returns:
-            A character-based sequence label.
+            A tuple of instances of SequenceLabel.
         """
         if alignments is not None and len(tag_indices) != len(alignments):
             raise ValueError(
@@ -474,8 +531,8 @@ class LabelSet:
         else:
             return tuple(labels)
 
-    def __get_start_states(self) -> tuple[bool, ...]:
-        """Returns a list of booleans representing an allowed start states.
+    def __create_start_states(self) -> tuple[bool, ...]:
+        """Creates a list of booleans representing an allowed start states.
 
         Returns:
             A list of booleans representing allowed start states,
@@ -491,8 +548,8 @@ class LabelSet:
 
         return tuple(states)
 
-    def __get_end_states(self) -> tuple[bool, ...]:
-        """Returns a list of booleans representing an allowed end states.
+    def __create_end_states(self) -> tuple[bool, ...]:
+        """Creates a list of booleans representing an allowed end states.
 
         Returns:
             A list of booleans representing allowed end states,
@@ -508,8 +565,8 @@ class LabelSet:
 
         return tuple(states)
 
-    def __get_transitions(self) -> tuple[tuple[bool, ...], ...]:
-        """Returns a list of lists of booleans representing
+    def __create_transitions(self) -> tuple[tuple[bool, ...], ...]:
+        """Creates a list of lists of booleans representing
         allowed transitions between tags.
 
         Returns:
