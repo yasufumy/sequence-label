@@ -274,9 +274,9 @@ class LabelSet:
             for move in (Move.START, Move.INSIDE, Move.END, Move.UNIT):
                 self.__states.append((move, label))
 
-        self.start_states = self.__get_start_states()
-        self.transitions = self.__get_transitions()
-        self.end_states = self.__get_end_states()
+        self.start_states = self.__create_start_states()
+        self.transitions = self.__create_transitions()
+        self.end_states = self.__create_end_states()
 
     @property
     def state_size(self) -> int:
@@ -490,7 +490,7 @@ class LabelSet:
         else:
             return tuple(labels)
 
-    def __get_start_states(self) -> tuple[bool, ...]:
+    def __create_start_states(self) -> tuple[bool, ...]:
         """Returns a list of booleans representing an allowed start states.
 
         Returns:
@@ -507,7 +507,7 @@ class LabelSet:
 
         return tuple(states)
 
-    def __get_end_states(self) -> tuple[bool, ...]:
+    def __create_end_states(self) -> tuple[bool, ...]:
         """Returns a list of booleans representing an allowed end states.
 
         Returns:
@@ -524,7 +524,7 @@ class LabelSet:
 
         return tuple(states)
 
-    def __get_transitions(self) -> tuple[tuple[bool, ...], ...]:
+    def __create_transitions(self) -> tuple[tuple[bool, ...], ...]:
         """Returns a list of lists of booleans representing
         allowed transitions between tags.
 
