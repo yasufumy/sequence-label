@@ -35,7 +35,7 @@ texts = (text1, text2)
 labels = (label1, label2)
 ```
 
-Next, tokenize your `texts` and calculate the `alignments` using the `create_alignments` function. `alignments` is an instance of `LabelAlignment` that aligns sequence labels with the tokenized result:
+Next, tokenize your `texts` and calculate the `alignments` using the `create_alignments` function. `alignments` is a tuple of instances of `LabelAlignment` that aligns sequence labels with the tokenized result:
 
 ```py
 tokenizer = AutoTokenizer.from_pretrained("roberta-base")
@@ -48,7 +48,7 @@ alignments = create_alignments(
 )
 ```
 
-Now, create a `label_set` that will allow you to create tensors and reconstruct sequence labels from tensors. You can use the `LabelSet` class for this purpose. By calling `label_set.encode_to_tag_indices`, you can generate `tag_indices`:
+Now, create a `label_set` that will allow you to create tensors and reconstruct sequence labels from tensors. By calling `label_set.encode_to_tag_indices`, you can generate `tag_indices`:
 
 ```py
 label_set = LabelSet(
