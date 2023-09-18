@@ -1,6 +1,6 @@
 [project]
 name = "sequence-label"
-description = "A Sequence Labeling Utility"
+description = "A Tensor Creation and Label Reconstruction for Sequence Labeling"
 authors = [
     {name = "Yasufumi Taniguchi", email = "yasufumi.taniguchi@gmail.com"},
 ]
