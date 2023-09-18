@@ -49,6 +49,20 @@ def label_set() -> LabelSet:
             ),
         ),
         (
+            "Tokyo is the capital of Japan. ",
+            [[0, 1, 3, 0, 0, 0, 0, 4, 0, 0, 0]],
+            "tokenizer",
+            (
+                SequenceLabel.from_dict(
+                    tags=[
+                        {"start": 0, "end": 5, "label": "LOC"},
+                        {"start": 24, "end": 29, "label": "LOC"},
+                    ],
+                    size=31,
+                ),
+            ),
+        ),
+        (
             "John Doe",
             [[0, 16, 16, 0]],
             "tokenizer",
