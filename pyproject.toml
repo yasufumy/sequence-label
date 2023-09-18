@@ -89,3 +89,5 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+testpath = ["tests"]
+addopts = "--cov=sequence_label --cov-report=term-missing -vv"
