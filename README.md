@@ -35,7 +35,7 @@ texts = (text1, text2)
 labels = (label1, label2)
 ```
 
-Next, tokenize your `texts` and create the `alignments` using the `create_alignments` function. `alignments` is a tuple of instances of `LabelAlignment` that aligns sequence labels with the tokenized result:
+Next, tokenize your `texts` and create the `alignments` using the `create_alignments` method. `alignments` is a tuple of instances of `LabelAlignment` that aligns sequence labels with the tokenized result:
 
 ```py
 tokenizer = AutoTokenizer.from_pretrained("roberta-base")
