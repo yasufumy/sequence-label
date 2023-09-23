@@ -503,6 +503,7 @@ class LabelSet:
                 if not self.transitions[i][j]:
                     raise ValueError("Invalid indices.")
 
+        base = Base.SOURCE if alignments is None else Base.TARGET
         labels = []
         for indices in tag_indices:
             tags = []
@@ -519,9 +520,7 @@ class LabelSet:
                         prev -= 1
                     tags.append(Tag.create(start=prev, end=now + 1, label=label))
 
-            labels.append(
-                SequenceLabel(tags=tuple(tags), size=len(indices), base=Base.TARGET)
-            )
+            labels.append(SequenceLabel(tags=tuple(tags), size=len(indices), base=base))
 
         if alignments is not None:
             return tuple(

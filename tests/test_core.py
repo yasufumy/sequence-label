@@ -1,36 +1,71 @@
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from sequence_label import LabelAlignment, LabelSet, SequenceLabel
-from sequence_label.core import Base, Span
+from sequence_label.core import Base, Span, TagDict
 
 
-@pytest.fixture()
-def text() -> str:
-    return "Tokyo is the capital of Japan."
+@st.composite
+def source_labels(draw: st.DrawFn) -> tuple[SequenceLabel, ...]:
+    size = 100
+    num_labels = 8
+    max_num_tags = 20
+
+    labels = []
+    for _ in range(num_labels):
+        num_tags = draw(st.integers(min_value=1, max_value=max_num_tags))
+        tags = []
+        last = 0
+        for _ in range(num_tags):
+            if last >= size:
+                break
+            start = draw(st.integers(min_value=last, max_value=size - 1))
+            end = draw(st.integers(min_value=start + 1, max_value=size))
+            label = draw(st.sampled_from(["ORG", "LOC", "PER", "MISC"]))
+            # NOTE: mypy cannot infer a type of the dictionary below.
+            tags.append(cast(TagDict, {"start": start, "end": end, "label": label}))
+            last = end + 1
+        labels.append(SequenceLabel.from_dict(tags=tags, size=size))
+
+    return tuple(labels)
 
 
-@pytest.fixture()
-def size(text: str) -> int:
-    return len(text)
+@given(labels=source_labels())
+def test_labels_unchanged_after_encoding_and_decoding(
+    labels: tuple[SequenceLabel, ...]
+) -> None:
+    label_set = LabelSet({"ORG", "LOC", "PER", "MISC"})
+    assert labels == label_set.decode(label_set.encode_to_tag_indices(labels))
 
 
-@pytest.fixture()
-def label(size: int) -> SequenceLabel:
-    return SequenceLabel.from_dict(
-        tags=[
-            {"start": 0, "end": 5, "label": "LOC"},
-            {"start": 24, "end": 29, "label": "LOC"},
-        ],
-        size=size,
-    )
+@st.composite
+def target_label(draw: st.DrawFn) -> SequenceLabel:
+    size = 9
+    num_tags = draw(st.integers(min_value=1, max_value=5))
+    tags = []
+    last = 1
+    for _ in range(num_tags):
+        if last >= size:
+            break
+        start = draw(st.integers(min_value=last, max_value=size - 1))
+        end = draw(st.integers(min_value=start + 1, max_value=size))
+        label = draw(st.sampled_from(["ORG", "LOC", "PER", "MISC"]))
+        # NOTE: mypy cannot infer a type of the dictionary below.
+        tags.append(cast(TagDict, {"start": start, "end": end, "label": label}))
+        last = end + 1
+
+    return SequenceLabel.from_dict(tags=tags, size=size + 1, base=Base.TARGET)
 
 
-@pytest.fixture()
-def alignment() -> LabelAlignment:
+@given(label=target_label())
+def test_labels_unchanged_after_alignment(label: SequenceLabel) -> None:
     # Tokenized by RoBERTa
-    return LabelAlignment(
+    alignment = LabelAlignment(
         (
             None,
             Span(0, 3),
@@ -77,11 +112,13 @@ def alignment() -> LabelAlignment:
         ),
     )
 
+    assert label == alignment.align_with_target(
+        label=alignment.align_with_source(label=label)
+    )
 
-@pytest.fixture()
-def truncated_alignment() -> LabelAlignment:
-    # Tokenized by RoBERTa
-    return LabelAlignment(
+
+def test_tags_define_in_truncated_part_ignored() -> None:
+    truncated_alignment = LabelAlignment(
         (
             None,
             Span(0, 3),
@@ -122,6 +159,19 @@ def truncated_alignment() -> LabelAlignment:
         ),
     )
 
+    label = SequenceLabel.from_dict(
+        tags=[
+            {"start": 0, "end": 5, "label": "LOC"},
+            {"start": 24, "end": 29, "label": "LOC"},
+        ],
+        size=30,
+    )
+    expected = SequenceLabel.from_dict(
+        tags=[{"start": 1, "end": 3, "label": "LOC"}], size=4, base=Base.TARGET
+    )
+
+    assert truncated_alignment.align_with_target(label=label) == expected
+
 
 @pytest.fixture()
 def label_set() -> LabelSet:
@@ -144,16 +194,6 @@ def test_membership_check_is_valid(
     is_member = label in label_set
 
     assert is_member == expected
-
-
-def test_ignore_tags_define_in_truncated_text(
-    truncated_alignment: LabelAlignment, label: SequenceLabel
-) -> None:
-    expected = SequenceLabel.from_dict(
-        tags=[{"start": 1, "end": 3, "label": "LOC"}], size=4, base=Base.TARGET
-    )
-
-    assert truncated_alignment.align_with_target(label=label) == expected
 
 
 def test_start_states_are_valid(label_set: LabelSet) -> None:

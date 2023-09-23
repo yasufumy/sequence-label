@@ -1,6 +1,6 @@
 # sequence-label
 
-`sequence-label` is a Python library that streamlines the process of creating tensors for sequence labeling data and reconstructing sequence labeling data from tensors. Whether you're working on named entity recognition, part-of-speech tagging, or any other sequence labeling task, this library offers a convenient utility to simplify your workflow.
+`sequence-label` is a Python library that streamlines the process of creating tensors for sequence labels and reconstructing sequence labels data from tensors. Whether you're working on named entity recognition, part-of-speech tagging, or any other sequence labeling task, this library offers a convenient utility to simplify your workflow.
 
 ## Basic Usage
 
@@ -35,7 +35,7 @@ texts = (text1, text2)
 labels = (label1, label2)
 ```
 
-Next, tokenize your `texts` and create the `alignments` using the `create_alignments` function. `alignments` is a tuple of instances of `LabelAlignment` that aligns sequence labels with the tokenized result:
+Next, tokenize your `texts` and create the `alignments` using the `create_alignments` method. `alignments` is a tuple of instances of `LabelAlignment` that aligns sequence labels with the tokenized result:
 
 ```py
 tokenizer = AutoTokenizer.from_pretrained("roberta-base")
