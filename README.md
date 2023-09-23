@@ -1,6 +1,6 @@
 # sequence-label
 
-`sequence-label` is a Python library that streamlines the process of creating tensors for sequence labeling data and reconstructing sequence labeling data from tensors. Whether you're working on named entity recognition, part-of-speech tagging, or any other sequence labeling task, this library offers a convenient utility to simplify your workflow.
+`sequence-label` is a Python library that streamlines the process of creating tensors for sequence labels and reconstructing sequence labels data from tensors. Whether you're working on named entity recognition, part-of-speech tagging, or any other sequence labeling task, this library offers a convenient utility to simplify your workflow.
 
 ## Basic Usage
 
