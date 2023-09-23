@@ -1,9 +1,46 @@
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from sequence_label import LabelAlignment, LabelSet, SequenceLabel
-from sequence_label.core import Base, Span
+from sequence_label.core import Base, Span, TagDict
+
+
+@st.composite
+def labels(draw: st.DrawFn) -> tuple[SequenceLabel, ...]:
+    size = 100
+    num_labels = 8
+    max_num_tags = 20
+
+    labels = []
+    for _ in range(num_labels):
+        num_tags = draw(st.integers(min_value=1, max_value=max_num_tags))
+        tags = []
+        last = 0
+        for _ in range(num_tags):
+            if last >= size:
+                break
+            start = draw(st.integers(min_value=last, max_value=size - 1))
+            end = draw(st.integers(min_value=start + 1, max_value=size))
+            label = draw(st.sampled_from(["ORG", "LOC", "PER", "MISC"]))
+            # NOTE: mypy cannot infer a type of the dictionary before.
+            tags.append(cast(TagDict, {"start": start, "end": end, "label": label}))
+            last = end + 1
+        labels.append(SequenceLabel.from_dict(tags=tags, size=size))
+
+    return tuple(labels)
+
+
+@given(labels())
+def test_labels_unchanged_after_encoding_and_decoding(
+    labels: tuple[SequenceLabel, ...]
+) -> None:
+    label_set = LabelSet({"ORG", "PER", "LOC", "MISC"})
+    assert labels == label_set.decode(label_set.encode_to_tag_indices(labels))
 
 
 @pytest.fixture()
