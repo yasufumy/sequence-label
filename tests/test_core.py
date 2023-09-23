@@ -11,7 +11,7 @@ from sequence_label.core import Base, Span, TagDict
 
 
 @st.composite
-def labels(draw: st.DrawFn) -> tuple[SequenceLabel, ...]:
+def source_labels(draw: st.DrawFn) -> tuple[SequenceLabel, ...]:
     size = 100
     num_labels = 8
     max_num_tags = 20
@@ -35,7 +35,7 @@ def labels(draw: st.DrawFn) -> tuple[SequenceLabel, ...]:
     return tuple(labels)
 
 
-@given(labels=labels())
+@given(labels=source_labels())
 def test_labels_unchanged_after_encoding_and_decoding(
     labels: tuple[SequenceLabel, ...]
 ) -> None:
@@ -94,10 +94,8 @@ def alignment() -> LabelAlignment:
     )
 
 
-@pytest.fixture()
-def truncated_alignment() -> LabelAlignment:
-    # Tokenized by RoBERTa
-    return LabelAlignment(
+def test_tags_define_in_truncated_part_ignored() -> None:
+    truncated_alignment = LabelAlignment(
         (
             None,
             Span(0, 3),
@@ -138,6 +136,19 @@ def truncated_alignment() -> LabelAlignment:
         ),
     )
 
+    label = SequenceLabel.from_dict(
+        tags=[
+            {"start": 0, "end": 5, "label": "LOC"},
+            {"start": 24, "end": 29, "label": "LOC"},
+        ],
+        size=30,
+    )
+    expected = SequenceLabel.from_dict(
+        tags=[{"start": 1, "end": 3, "label": "LOC"}], size=4, base=Base.TARGET
+    )
+
+    assert truncated_alignment.align_with_target(label=label) == expected
+
 
 @pytest.fixture()
 def label_set() -> LabelSet:
@@ -160,23 +171,6 @@ def test_membership_check_is_valid(
     is_member = label in label_set
 
     assert is_member == expected
-
-
-def test_tags_define_in_truncated_part_ignored(
-    truncated_alignment: LabelAlignment,
-) -> None:
-    label = SequenceLabel.from_dict(
-        tags=[
-            {"start": 0, "end": 5, "label": "LOC"},
-            {"start": 24, "end": 29, "label": "LOC"},
-        ],
-        size=30,
-    )
-    expected = SequenceLabel.from_dict(
-        tags=[{"start": 1, "end": 3, "label": "LOC"}], size=4, base=Base.TARGET
-    )
-
-    assert truncated_alignment.align_with_target(label=label) == expected
 
 
 def test_start_states_are_valid(label_set: LabelSet) -> None:
