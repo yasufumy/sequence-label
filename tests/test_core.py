@@ -35,33 +35,12 @@ def labels(draw: st.DrawFn) -> tuple[SequenceLabel, ...]:
     return tuple(labels)
 
 
-@given(labels())
+@given(labels=labels())
 def test_labels_unchanged_after_encoding_and_decoding(
     labels: tuple[SequenceLabel, ...]
 ) -> None:
     label_set = LabelSet({"ORG", "LOC", "PER", "MISC"})
     assert labels == label_set.decode(label_set.encode_to_tag_indices(labels))
-
-
-@pytest.fixture()
-def text() -> str:
-    return "Tokyo is the capital of Japan."
-
-
-@pytest.fixture()
-def size(text: str) -> int:
-    return len(text)
-
-
-@pytest.fixture()
-def label(size: int) -> SequenceLabel:
-    return SequenceLabel.from_dict(
-        tags=[
-            {"start": 0, "end": 5, "label": "LOC"},
-            {"start": 24, "end": 29, "label": "LOC"},
-        ],
-        size=size,
-    )
 
 
 @pytest.fixture()
@@ -183,9 +162,16 @@ def test_membership_check_is_valid(
     assert is_member == expected
 
 
-def test_ignore_tags_define_in_truncated_text(
-    truncated_alignment: LabelAlignment, label: SequenceLabel
+def test_tags_define_in_truncated_part_ignored(
+    truncated_alignment: LabelAlignment,
 ) -> None:
+    label = SequenceLabel.from_dict(
+        tags=[
+            {"start": 0, "end": 5, "label": "LOC"},
+            {"start": 24, "end": 29, "label": "LOC"},
+        ],
+        size=30,
+    )
     expected = SequenceLabel.from_dict(
         tags=[{"start": 1, "end": 3, "label": "LOC"}], size=4, base=Base.TARGET
     )
