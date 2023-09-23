@@ -27,7 +27,7 @@ def labels(draw: st.DrawFn) -> tuple[SequenceLabel, ...]:
             start = draw(st.integers(min_value=last, max_value=size - 1))
             end = draw(st.integers(min_value=start + 1, max_value=size))
             label = draw(st.sampled_from(["ORG", "LOC", "PER", "MISC"]))
-            # NOTE: mypy cannot infer a type of the dictionary before.
+            # NOTE: mypy cannot infer a type of the dictionary below.
             tags.append(cast(TagDict, {"start": start, "end": end, "label": label}))
             last = end + 1
         labels.append(SequenceLabel.from_dict(tags=tags, size=size))
