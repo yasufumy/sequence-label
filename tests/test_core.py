@@ -39,7 +39,7 @@ def labels(draw: st.DrawFn) -> tuple[SequenceLabel, ...]:
 def test_labels_unchanged_after_encoding_and_decoding(
     labels: tuple[SequenceLabel, ...]
 ) -> None:
-    label_set = LabelSet({"ORG", "PER", "LOC", "MISC"})
+    label_set = LabelSet({"ORG", "LOC", "PER", "MISC"})
     assert labels == label_set.decode(label_set.encode_to_tag_indices(labels))
 
 
