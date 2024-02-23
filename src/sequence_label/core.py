@@ -265,11 +265,11 @@ class LabelAlignment:
 
 
 class Move(Enum):
-    OUTSIDE = auto()
-    START = auto()
-    INSIDE = auto()
-    END = auto()
-    UNIT = auto()
+    Outside = auto()
+    Start = auto()
+    Inside = auto()
+    End = auto()
+    Unit = auto()
 
 
 class LabelSet:
@@ -303,14 +303,14 @@ class LabelSet:
         self.__end_indices = {}
         self.__unit_indices = {}
 
-        self.__states: list[tuple[Move, str | None]] = [(Move.OUTSIDE, None)]
+        self.__states: list[tuple[Move, str | None]] = [(Move.Outside, None)]
 
         for label in sorted(labels):
             self.__start_indices[label] = self.state_size
             self.__inside_indices[label] = self.state_size
             self.__end_indices[label] = self.state_size
             self.__unit_indices[label] = self.state_size
-            for move in (Move.START, Move.INSIDE, Move.END, Move.UNIT):
+            for move in (Move.Start, Move.Inside, Move.End, Move.Unit):
                 self.__states.append((move, label))
 
         self.start_states = self.__create_start_states()
@@ -512,11 +512,11 @@ class LabelSet:
                 if label is None:
                     continue
 
-                if move is Move.UNIT:
+                if move is Move.Unit:
                     tags.append(Tag.create(start=now, end=now + 1, label=label))
-                elif move is Move.END:
+                elif move is Move.End:
                     prev = now
-                    while self.__states[indices[prev]][0] is not Move.START:
+                    while self.__states[indices[prev]][0] is not Move.Start:
                         prev -= 1
                     tags.append(Tag.create(start=prev, end=now + 1, label=label))
 
