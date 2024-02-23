@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import pytest
@@ -38,7 +39,7 @@ def label_set() -> LabelSet:
             "Tokyo is the capital of Japan.",
             [[0, 1, 3, 0, 0, 0, 0, 4, 0, 0]],
             "tokenizer",
-            (
+            [
                 SequenceLabel.from_dict(
                     tags=[
                         {"start": 0, "end": 5, "label": "LOC"},
@@ -46,13 +47,13 @@ def label_set() -> LabelSet:
                     ],
                     size=30,
                 ),
-            ),
+            ],
         ),
         (
             "Tokyo is the capital of Japan. ",
             [[0, 1, 3, 0, 0, 0, 0, 4, 0, 0, 0]],
             "tokenizer",
-            (
+            [
                 SequenceLabel.from_dict(
                     tags=[
                         {"start": 0, "end": 5, "label": "LOC"},
@@ -60,13 +61,13 @@ def label_set() -> LabelSet:
                     ],
                     size=31,
                 ),
-            ),
+            ],
         ),
         (
             "John Doe",
             [[0, 16, 16, 0]],
             "tokenizer",
-            (
+            [
                 SequenceLabel.from_dict(
                     tags=[
                         {"start": 0, "end": 4, "label": "PER"},
@@ -74,27 +75,27 @@ def label_set() -> LabelSet:
                     ],
                     size=8,
                 ),
-            ),
+            ],
         ),
         (
             "John Doe",
             [[0, 13, 15, 0]],
             "tokenizer",
-            (
+            [
                 SequenceLabel.from_dict(
                     tags=[{"start": 0, "end": 8, "label": "PER"}], size=8
                 ),
-            ),
+            ],
         ),
         (
             ["Named-entity", "recognition", "is", "very", "interesting", "."],
             [[0, 5, 6, 6, 7, 0, 0, 0, 0, 0]],
             "tokenizer_word",
-            (
+            [
                 SequenceLabel.from_dict(
                     tags=[{"start": 0, "end": 2, "label": "MISC"}], size=6
                 ),
-            ),
+            ],
         ),
     ],
 )
@@ -104,7 +105,7 @@ def test_decoded_labels_are_valid(
     text: str | list[str],
     tag_indices: list[list[int]],
     tokenizer_type: str,
-    expected: tuple[SequenceLabel, ...],
+    expected: Sequence[SequenceLabel],
 ) -> None:
     tokenizer = request.getfixturevalue(tokenizer_type)
     batch_encoding = tokenizer(text)
@@ -758,7 +759,7 @@ def test_tag_bitmap_is_valid(
     label_set: LabelSet,
     tokenizer: PreTrainedTokenizerFast,
     text: str,
-    labels: tuple[SequenceLabel, ...],
+    labels: Sequence[SequenceLabel],
     expected: list[list[list[bool]]],
 ) -> None:
     batch_encoding = tokenizer([text], truncation=True)

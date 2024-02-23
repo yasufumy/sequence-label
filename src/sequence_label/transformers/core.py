@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from collections.abc import Sequence
 
 from sequence_label import LabelAlignment
 from sequence_label.core import Span
@@ -14,23 +15,23 @@ __all__ = ["create_alignments"]
 
 def create_alignments(
     batch_encoding: BatchEncoding,
-    lengths: list[int],
+    lengths: Sequence[int],
     is_split_into_words: bool = False,
     padding_token: str | None = None,
-) -> tuple[LabelAlignment, ...]:
+) -> Sequence[LabelAlignment]:
     """Creates instances of LabelAlignment from an instance of BatchEncoding that
     is a result of the Huggingface tokenizer.
 
     Args:
         batch_encoding: An instance of BatchEncoding.
-        lengths: A list of integers where each item represents a length of text.
+        lengths: A sequence of integers where each item represents a length of text.
         is_split_into_words: A boolean representing whether is_split_into_words was
             enabled during tokenization. Defaults to False.
         padding_token: A string representing a special token used to make lists of
             tokens the same size for batching purpose. Defaults to None.
 
     Returns:
-        a tuple of instances of LabelAlignment.
+        a sequence of instances of LabelAlignment.
     """
     if not batch_encoding.is_fast:
         raise ValueError("Please use a subclass of PreTrainedTokenizerFast.")
@@ -59,8 +60,8 @@ def create_alignments(
 
             alignments.append(
                 LabelAlignment(
-                    source_spans=tuple(src_char_spans),
-                    target_spans=tuple(tgt_token_spans),
+                    source_spans=src_char_spans,
+                    target_spans=tgt_token_spans,
                 )
             )
     else:
@@ -82,8 +83,8 @@ def create_alignments(
 
             alignments.append(
                 LabelAlignment(
-                    source_spans=tuple(src_token_spans),
-                    target_spans=tuple(tgt_word_spans),
+                    source_spans=src_token_spans,
+                    target_spans=tgt_word_spans,
                 )
             )
-    return tuple(alignments)
+    return alignments
