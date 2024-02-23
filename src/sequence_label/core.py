@@ -69,15 +69,15 @@ class TagDict(TypedDict):
 
 
 class Base(Enum):
-    SOURCE = auto()
-    TARGET = auto()
+    Source = auto()
+    Target = auto()
 
 
 @dataclass(frozen=True)
 class SequenceLabel:
     tags: tuple[Tag, ...]
     size: int
-    base: Base = Base.SOURCE
+    base: Base = Base.Source
 
     def __post_init__(self) -> None:
         if any(self.tags[i] > self.tags[i + 1] for i in range(len(self.tags) - 1)):
@@ -100,7 +100,7 @@ class SequenceLabel:
 
     @classmethod
     def from_dict(
-        cls, tags: list[TagDict], size: int, base: Base = Base.SOURCE
+        cls, tags: list[TagDict], size: int, base: Base = Base.Source
     ) -> SequenceLabel:
         """A named constructor for creating an instance of SequenceLabel from a list
         of dictionaries, where each dictionary has three keys start, end, and label.
@@ -194,9 +194,9 @@ class LabelAlignment:
         return len(self.__source_spans)
 
     def get_span_lengths(self, base: Base) -> tuple[int, ...]:
-        if base == Base.SOURCE:
+        if base == Base.Source:
             return tuple(span.length if span else 0 for span in self.__source_spans)
-        elif base == Base.TARGET:
+        elif base == Base.Target:
             return tuple(span.length if span else 0 for span in self.__target_spans)
         else:
             raise ValueError(f"{base} is not supported.")
@@ -210,7 +210,7 @@ class LabelAlignment:
         Returns:
             A character-based sequence label.
         """
-        return self.__align(label=label, src=Base.TARGET, tgt=Base.SOURCE)
+        return self.__align(label=label, src=Base.Target, tgt=Base.Source)
 
     def align_with_target(self, label: SequenceLabel) -> SequenceLabel:
         """Converts character-based tags to token-based tags. Note that this operation
@@ -223,10 +223,10 @@ class LabelAlignment:
         Returns:
             A token-based sequence label.
         """
-        return self.__align(label=label, src=Base.SOURCE, tgt=Base.TARGET)
+        return self.__align(label=label, src=Base.Source, tgt=Base.Target)
 
     def __align(self, label: SequenceLabel, src: Base, tgt: Base) -> SequenceLabel:
-        if tgt == Base.TARGET:
+        if tgt == Base.Target:
             source_size = self.source_size
             target_size = self.target_size
             spans = self.__target_spans
@@ -503,7 +503,7 @@ class LabelSet:
                 if not self.transitions[i][j]:
                     raise ValueError("Invalid indices.")
 
-        base = Base.SOURCE if alignments is None else Base.TARGET
+        base = Base.Source if alignments is None else Base.Target
         labels = []
         for indices in tag_indices:
             tags = []

@@ -59,7 +59,7 @@ def target_label(draw: st.DrawFn) -> SequenceLabel:
         tags.append(cast(TagDict, {"start": start, "end": end, "label": label}))
         last = end + 1
 
-    return SequenceLabel.from_dict(tags=tags, size=size + 1, base=Base.TARGET)
+    return SequenceLabel.from_dict(tags=tags, size=size + 1, base=Base.Target)
 
 
 @given(label=target_label())
@@ -167,7 +167,7 @@ def test_tags_define_in_truncated_part_ignored() -> None:
         size=30,
     )
     expected = SequenceLabel.from_dict(
-        tags=[{"start": 1, "end": 3, "label": "LOC"}], size=4, base=Base.TARGET
+        tags=[{"start": 1, "end": 3, "label": "LOC"}], size=4, base=Base.Target
     )
 
     assert truncated_alignment.align_with_target(label=label) == expected
