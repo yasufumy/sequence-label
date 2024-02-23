@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import cast
+from collections.abc import Sequence
 
 import pytest
 from hypothesis import given
@@ -11,7 +12,7 @@ from sequence_label.core import Base, Span, TagDict
 
 
 @st.composite
-def source_labels(draw: st.DrawFn) -> tuple[SequenceLabel, ...]:
+def source_labels(draw: st.DrawFn) -> Sequence[SequenceLabel]:
     size = 100
     num_labels = 8
     max_num_tags = 20
@@ -32,12 +33,12 @@ def source_labels(draw: st.DrawFn) -> tuple[SequenceLabel, ...]:
             last = end + 1
         labels.append(SequenceLabel.from_dict(tags=tags, size=size))
 
-    return tuple(labels)
+    return labels
 
 
 @given(labels=source_labels())
 def test_labels_unchanged_after_encoding_and_decoding(
-    labels: tuple[SequenceLabel, ...]
+    labels: Sequence[SequenceLabel],
 ) -> None:
     label_set = LabelSet({"ORG", "LOC", "PER", "MISC"})
     assert labels == label_set.decode(label_set.encode_to_tag_indices(labels))
@@ -197,7 +198,7 @@ def test_membership_check_is_valid(
 
 
 def test_start_states_are_valid(label_set: LabelSet) -> None:
-    expected = (
+    expected = [
         True,  # O
         True,  # B-ORG
         False,  # I-ORG
@@ -207,13 +208,13 @@ def test_start_states_are_valid(label_set: LabelSet) -> None:
         False,  # I-PER
         False,  # L-PER
         True,  # U-PER
-    )
+    ]
 
     assert label_set.start_states == expected
 
 
 def test_end_states_are_valid(label_set: LabelSet) -> None:
-    expected = (
+    expected = [
         True,  # O
         False,  # B-ORG
         False,  # I-ORG
@@ -223,14 +224,14 @@ def test_end_states_are_valid(label_set: LabelSet) -> None:
         False,  # I-PER
         True,  # L-PER
         True,  # U-PER
-    )
+    ]
 
     assert label_set.end_states == expected
 
 
 def test_transitions_are_valid(label_set: LabelSet) -> None:
-    expected = (
-        (
+    expected = [
+        [
             True,  # O
             True,  # B-ORG
             False,  # I-ORG
@@ -240,8 +241,8 @@ def test_transitions_are_valid(label_set: LabelSet) -> None:
             False,  # I-PER
             False,  # L-PER
             True,  # U-PER
-        ),  # O
-        (
+        ],  # O
+        [
             False,  # O
             False,  # B-ORG
             True,  # I-ORG
@@ -251,8 +252,8 @@ def test_transitions_are_valid(label_set: LabelSet) -> None:
             False,  # I-PER
             False,  # L-PER
             False,  # U-PER
-        ),  # B-ORG
-        (
+        ],  # B-ORG
+        [
             False,  # O
             False,  # B-ORG
             True,  # I-ORG
@@ -262,8 +263,8 @@ def test_transitions_are_valid(label_set: LabelSet) -> None:
             False,  # I-PER
             False,  # L-PER
             False,  # U-PER
-        ),  # I-ORG
-        (
+        ],  # I-ORG
+        [
             True,  # O
             True,  # B-ORG
             False,  # I-ORG
@@ -273,8 +274,8 @@ def test_transitions_are_valid(label_set: LabelSet) -> None:
             False,  # I-PER
             False,  # L-PER
             True,  # U-PER
-        ),  # L-ORG
-        (
+        ],  # L-ORG
+        [
             True,  # O
             True,  # B-ORG
             False,  # I-ORG
@@ -284,8 +285,8 @@ def test_transitions_are_valid(label_set: LabelSet) -> None:
             False,  # I-PER
             False,  # L-PER
             True,  # U-PER
-        ),  # U-ORG
-        (
+        ],  # U-ORG
+        [
             False,  # O
             False,  # B-ORG
             False,  # I-ORG
@@ -295,8 +296,8 @@ def test_transitions_are_valid(label_set: LabelSet) -> None:
             True,  # I-PER
             True,  # L-PER
             False,  # U-PER
-        ),  # B-PER
-        (
+        ],  # B-PER
+        [
             False,  # O
             False,  # B-ORG
             False,  # I-ORG
@@ -306,8 +307,8 @@ def test_transitions_are_valid(label_set: LabelSet) -> None:
             True,  # I-PER
             True,  # L-PER
             False,  # U-PER
-        ),  # I-PER
-        (
+        ],  # I-PER
+        [
             True,  # O
             True,  # B-ORG
             False,  # I-ORG
@@ -317,8 +318,8 @@ def test_transitions_are_valid(label_set: LabelSet) -> None:
             False,  # I-PER
             False,  # L-PER
             True,  # U-PER
-        ),  # L-PER
-        (
+        ],  # L-PER
+        [
             True,  # O
             True,  # B-ORG
             False,  # I-ORG
@@ -328,7 +329,7 @@ def test_transitions_are_valid(label_set: LabelSet) -> None:
             False,  # I-PER
             False,  # L-PER
             True,  # U-PER
-        ),  # U-PER
-    )
+        ],  # U-PER
+    ]
 
     assert label_set.transitions == expected
