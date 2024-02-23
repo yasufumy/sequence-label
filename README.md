@@ -31,8 +31,8 @@ label2 = SequenceLabel.from_dict(
     size=len(text2),
 )
 
-texts = (text1, text2)
-labels = (label1, label2)
+texts = [text1, text2]
+labels = [label1, label2]
 ```
 
 Next, tokenize your `texts` and create the `alignments` using the `create_alignments` method. `alignments` is a tuple of instances of `LabelAlignment` that aligns sequence labels with the tokenized result:
