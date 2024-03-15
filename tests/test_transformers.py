@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from functools import partial
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import pytest
@@ -11,6 +10,8 @@ from sequence_label import LabelSet, SequenceLabel
 from sequence_label.transformers import create_alignments
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from transformers import PreTrainedTokenizerFast
 
 

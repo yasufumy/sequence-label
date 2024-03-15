@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Sequence, Set
 from dataclasses import dataclass
 from enum import Enum, auto
 from itertools import chain
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence, Set
 
 __all__ = [
     "Span",
@@ -288,9 +290,9 @@ class LabelSet:
             True indicates an allowed state, while False indicates an otherwise state.
         end_states: A sequence of boolean values representing the end states.
             True indicates an allowed state, while False indicates an otherwise state.
-        transitions: A sequence of sequence of boolean values representing the transitions.
-            True indicates an allowed transition, while False indicates an otherwise
-            transition.
+        transitions: A sequence of sequence of boolean values representing the
+            transitions. True indicates an allowed transition,
+            while False indicates an otherwise transition.
     """
 
     def __init__(self, labels: Set[str], padding_index: int = -1):
@@ -429,7 +431,8 @@ class LabelSet:
             alignments: A sequence of instances of LabelAlignment. Defaults to None.
 
         Returns:
-            A sequence of sequences of booleans, where each boolean represents an active tag.
+            A sequence of sequences of booleans, where each boolean represents
+            an active tag.
 
         """
         if alignments is not None and len(labels) != len(alignments):
@@ -568,8 +571,9 @@ class LabelSet:
         allowed transitions between tags.
 
         Returns:
-            A sequence of sequences of booleans representing allowed transitions between tags,
-            where each item is: True for an allowed transition and False otherwise.
+            A sequence of sequences of booleans representing allowed transitions between
+            tags, where each item is: True for an allowed transition
+            and False otherwise.
 
         """
         transitions = [[False] * self.state_size for _ in range(self.state_size)]
