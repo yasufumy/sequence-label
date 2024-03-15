@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from typing import cast
-from collections.abc import Sequence
+from typing import TYPE_CHECKING, cast
 
 import pytest
 from hypothesis import given
@@ -9,6 +8,9 @@ from hypothesis import strategies as st
 
 from sequence_label import LabelAlignment, LabelSet, SequenceLabel
 from sequence_label.core import Base, Span, TagDict
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 @st.composite

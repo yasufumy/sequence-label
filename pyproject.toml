@@ -53,7 +53,7 @@ line-length = 88
 src = ["src"]
 line-length = 88
 
-[too.ruff.lint]
+[tool.ruff.lint]
 select = [
   "E",  # pycodestyle errors
   "W",  # pycodestyle warnings
