@@ -176,7 +176,7 @@ def test_tags_define_in_truncated_part_ignored() -> None:
     assert truncated_alignment.align_with_target(label=label) == expected
 
 
-@pytest.fixture()
+@pytest.fixture
 def label_set() -> LabelSet:
     return LabelSet({"ORG", "PER"})
 
