@@ -394,7 +394,7 @@ class LabelSet:
         if alignments is not None:
             labels = [
                 alignment.align_with_target(label=label)
-                for label, alignment in zip(labels, alignments)
+                for label, alignment in zip(labels, alignments, strict=False)
             ]
 
         max_size = max(label.size for label in labels)
@@ -440,7 +440,7 @@ class LabelSet:
         if alignments is not None:
             labels = [
                 alignment.align_with_target(label=label)
-                for label, alignment in zip(labels, alignments)
+                for label, alignment in zip(labels, alignments, strict=False)
             ]
 
         max_size = max(label.size for label in labels)
@@ -451,7 +451,9 @@ class LabelSet:
             for tag in label.tags:
                 start = tag.start
                 for i, bitmap in enumerate(self.get_tag_bitmap(tag=tag), start):
-                    tag_bitmap[i] = [a or b for a, b in zip(tag_bitmap[i], bitmap)]
+                    tag_bitmap[i] = [
+                        a or b for a, b in zip(tag_bitmap[i], bitmap, strict=False)
+                    ]
 
             for i in range(label.size):
                 if sum(tag_bitmap[i]) > 0:
@@ -497,7 +499,7 @@ class LabelSet:
             if not self.end_states[indices[-1]]:
                 raise ValueError("Invalid indices.")
 
-            for i, j in zip(indices[:-1], indices[1:]):
+            for i, j in zip(indices[:-1], indices[1:], strict=False):
                 if not self.transitions[i][j]:
                     raise ValueError("Invalid indices.")
 
@@ -523,7 +525,7 @@ class LabelSet:
         if alignments is not None:
             return [
                 alignment.align_with_source(label)
-                for label, alignment in zip(labels, alignments)
+                for label, alignment in zip(labels, alignments, strict=False)
             ]
         else:
             return labels
