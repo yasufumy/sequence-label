@@ -1,15 +1,9 @@
-from __future__ import annotations
+from collections.abc import Sequence
 
-from typing import TYPE_CHECKING
+from transformers import BatchEncoding
 
 from sequence_label import LabelAlignment
 from sequence_label.core import Span
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
-    from transformers import BatchEncoding
-
 
 __all__ = ["create_alignments"]
 

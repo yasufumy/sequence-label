@@ -15,12 +15,12 @@ if TYPE_CHECKING:
     from transformers import PreTrainedTokenizerFast
 
 
-@pytest.fixture()
+@pytest.fixture
 def tokenizer() -> PreTrainedTokenizerFast:
     return AutoTokenizer.from_pretrained("distilroberta-base")
 
 
-@pytest.fixture()
+@pytest.fixture
 def tokenizer_word() -> PreTrainedTokenizerFast:
     return partial(
         AutoTokenizer.from_pretrained("distilroberta-base", add_prefix_space=True),
@@ -28,7 +28,7 @@ def tokenizer_word() -> PreTrainedTokenizerFast:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def label_set() -> LabelSet:
     return LabelSet({"ORG", "LOC", "PER", "MISC"})
 
