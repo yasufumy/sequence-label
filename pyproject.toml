@@ -90,6 +90,10 @@ strict = true
 module = ["transformers"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["test_transformers"]
+allow_untyped_calls = true
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpath = ["tests"]
