@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pytest
 from transformers import AutoTokenizer
@@ -17,14 +17,19 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def tokenizer() -> PreTrainedTokenizerFast:
-    return AutoTokenizer.from_pretrained("distilroberta-base")
+    return cast(
+        "PreTrainedTokenizerFast", AutoTokenizer.from_pretrained("distilroberta-base")
+    )
 
 
 @pytest.fixture
 def tokenizer_word() -> PreTrainedTokenizerFast:
-    return partial(
-        AutoTokenizer.from_pretrained("distilroberta-base", add_prefix_space=True),
-        is_split_into_words=True,
+    return cast(
+        "PreTrainedTokenizerFast",
+        partial(
+            AutoTokenizer.from_pretrained("distilroberta-base", add_prefix_space=True),
+            is_split_into_words=True,
+        ),
     )
 
 

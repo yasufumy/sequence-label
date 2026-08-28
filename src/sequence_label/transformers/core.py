@@ -41,10 +41,12 @@ def create_alignments(
             )
             src_char_spans: list[Span | None] = [None] * num_tokens
             for j in range(num_tokens):
-                span = batch_encoding.token_to_chars(i, j)
-                if span is None or span.start == span.end:
+                char_span = batch_encoding.token_to_chars(i, j)
+                if char_span is None or char_span.start == char_span.end:
                     continue
-                src_char_spans[j] = Span(span.start, span.end - span.start)
+                src_char_spans[j] = Span(
+                    char_span.start, char_span.end - char_span.start
+                )
 
             tgt_token_spans: list[Span | None] = [None] * length
             for j in range(length):
@@ -71,10 +73,12 @@ def create_alignments(
 
             tgt_word_spans: list[Span | None] = [None] * length
             for j in range(length):
-                span = batch_encoding.word_to_tokens(i, j)
-                if span is None or span.start == span.end:
+                token_span = batch_encoding.word_to_tokens(i, j)
+                if token_span is None or token_span.start == token_span.end:
                     continue
-                tgt_word_spans[j] = Span(start=span.start, length=span.end - span.start)
+                tgt_word_spans[j] = Span(
+                    start=token_span.start, length=token_span.end - token_span.start
+                )
 
             alignments.append(
                 LabelAlignment(

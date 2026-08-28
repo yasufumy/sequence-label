@@ -7,10 +7,12 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from sequence_label import LabelAlignment, LabelSet, SequenceLabel
-from sequence_label.core import Base, Span, TagDict
+from sequence_label.core import Base, Span
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from sequence_label.core import TagDict
 
 
 @st.composite
@@ -31,7 +33,7 @@ def source_labels(draw: st.DrawFn) -> Sequence[SequenceLabel]:
             end = draw(st.integers(min_value=start + 1, max_value=size))
             label = draw(st.sampled_from(["ORG", "LOC", "PER", "MISC"]))
             # NOTE: mypy cannot infer a type of the dictionary below.
-            tags.append(cast(TagDict, {"start": start, "end": end, "label": label}))
+            tags.append(cast("TagDict", {"start": start, "end": end, "label": label}))
             last = end + 1
         labels.append(SequenceLabel.from_dict(tags=tags, size=size))
 
@@ -59,7 +61,7 @@ def target_label(draw: st.DrawFn) -> SequenceLabel:
         end = draw(st.integers(min_value=start + 1, max_value=size))
         label = draw(st.sampled_from(["ORG", "LOC", "PER", "MISC"]))
         # NOTE: mypy cannot infer a type of the dictionary below.
-        tags.append(cast(TagDict, {"start": start, "end": end, "label": label}))
+        tags.append(cast("TagDict", {"start": start, "end": end, "label": label}))
         last = end + 1
 
     return SequenceLabel.from_dict(tags=tags, size=size + 1, base=Base.Target)
